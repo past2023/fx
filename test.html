@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Test</title>
+    <style>
+        body { background: #000; color: #0f0; font-family: monospace; padding: 20px; }
+        #log { white-space: pre-wrap; }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>Bio-Force Integration Test</h1>
+    <div id="log"></div>
+    
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+    <button id="muteBtn">🔊</button>
+    
+    <script src="constants.js"></script>
+    <script src="input.js"></script>
+    <script src="sound.js"></script>
+    <script src="particles.js"></script>
+    <script src="bullet.js"></script>
+    <script src="forcepod.js"></script>
+    <script src="player.js"></script>
+    <script src="enemies.js"></script>
+    <script src="boss.js"></script>
+    <script src="background.js"></script>
+    <script src="hud.js"></script>
+    <script src="game.js"></script>
+    <script src="main.js"></script>
+    
+    <script>
+        const log = document.getElementById('log');
+        function addLog(msg, type) {
+            const div = document.createElement('div');
+            div.className = type || '';
+            div.textContent = msg;
+            log.appendChild(div);
+        }
+        
+        // Test that all classes are defined
+        setTimeout(() => {
+            try {
+                addLog('Testing class definitions...', 'success');
+                
+                const classes = [
+                    'GAME_CONSTANTS',
+                    'InputManager',
+                    'SoundManager',
+                    'ParticleSystem',
+                    'Bullet',
+                    'BulletPool',
+                    'ForcePod',
+                    'Player',
+                    'Enemy',
+                    'Drone',
+                    'Turret',
+                    'Swarm',
+                    'PowerUp',
+                    'MidBoss',
+                    'EnemyPool',
+                    'GoliathParasite',
+                    'Background',
+                    'HUD',
+                    'Game'
+                ];
+                
+                let allDefined = true;
+                classes.forEach(cls => {
+                    if (typeof window[cls] === 'undefined') {
+                        addLog('✗ Missing: ' + cls, 'error');
+                        allDefined = false;
+                    } else {
+                        addLog('✓ Found: ' + cls, 'success');
+                    }
+                });
+                
+                if (allDefined) {
+                    addLog('\n✓ All classes loaded successfully!', 'success');
+                    addLog('Game should be running on canvas below.', 'success');
+                } else {
+                    addLog('\n✗ Some classes failed to load!', 'error');
+                }
+                
+                // Check if game instance exists
+                if (window.game) {
+                    addLog('✓ Game instance created', 'success');
+                    addLog('  State: ' + window.game.state, 'success');
+                    addLog('  Score: ' + window.game.score, 'success');
+                } else {
+                    addLog('✗ Game instance not found', 'error');
+                }
+                
+            } catch (e) {
+                addLog('Error during test: ' + e.message, 'error');
+                addLog(e.stack, 'error');
+            }
+        }, 100);
+    </script>
+</body>
+</html>
