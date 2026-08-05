@@ -12,7 +12,7 @@ export default class InputManager {
       ['ArrowUp', ['up']], ['KeyW', ['up']],
       ['ArrowDown', ['down']], ['KeyS', ['down']],
       ['Space', ['shoot', 'start']], ['Enter', ['start']],
-      ['KeyQ', ['previousWeapon']], ['KeyE', ['nextWeapon']], ['KeyU', ['upgrade']],
+      ['KeyQ', ['previousWeapon']], ['KeyE', ['nextWeapon']], ['KeyU', ['upgrade']], ['KeyF', ['fullscreen']],
       ['Escape', ['pause']],
     ]);
     this._onKeyDown = this._onKeyDown.bind(this);

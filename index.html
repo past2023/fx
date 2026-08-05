@@ -11,14 +11,14 @@
   <main class="game-shell" aria-label="Starfall space shooter">
     <div class="titlebar">
       <span class="eyebrow">STARFALL // SECTOR 01</span>
-      <span class="status-dot">SYSTEMS ONLINE</span>
+      <div class="title-actions"><span class="status-dot">SYSTEMS ONLINE</span><button id="fullscreenButton" class="fullscreen-button" type="button" aria-label="Toggle full screen">FULL SCREEN <span>⛶</span></button></div>
     </div>
     <div class="canvas-frame">
       <canvas id="gameCanvas" width="1280" height="720" aria-label="Starfall game canvas">
         Your browser does not support HTML5 Canvas.
       </canvas>
     </div>
-    <p class="controls">MOVE <kbd>WASD</kbd><kbd>← ↑ ↓ →</kbd> &nbsp; FIRE / CONFIRM <kbd>SPACE</kbd> &nbsp; WEAPONS <kbd>Q</kbd><kbd>E</kbd> &nbsp; FIELD FORGE <kbd>U</kbd></p>
+    <p class="controls">MOVE <kbd>WASD</kbd><kbd>← ↑ ↓ →</kbd> &nbsp; FIRE / CONFIRM <kbd>SPACE</kbd> &nbsp; WEAPONS <kbd>Q</kbd><kbd>E</kbd> &nbsp; FIELD FORGE <kbd>U</kbd> &nbsp; FULL SCREEN <kbd>F</kbd></p>
   </main>
   <script type="module" src="js/main.js"></script>
 </body>

@@ -1,4 +1,4 @@
-import { ECONOMY, GAME, SHIPS, SHIP_UPGRADES, STATES, TUNING, WEAPONS } from './constants.js';
+import { COLORS, ECONOMY, GAME, SHIPS, SHIP_UPGRADES, STATES, TUNING, WEAPONS } from './constants.js';
 import AudioManager from './assetLoader.js';
 import InputManager from './input.js';
 import Background from './background.js';
@@ -22,6 +22,8 @@ export default class Game {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     if (!this.ctx) throw new Error('[game] Canvas 2D context is unavailable.');
+    this.fullscreenButton = document.getElementById('fullscreenButton');
+    this.isFullscreen = false;
     this.assets = assets;
     this.audio = new AudioManager(assets);
     this.input = new InputManager(window);
@@ -47,7 +49,14 @@ export default class Game {
     this.waveMilestones = [500, 1200, 2000, 2800, 3600, 4400];
     this.fade = 1;
     this.shakeDuration = 0;
+    this.shakeMaxDuration = 0;
     this.shakePower = 0;
+    this.screenFlash = 0;
+    this.screenFlashMax = 0;
+    this.screenFlashColor = COLORS.cyan;
+    this.notificationText = '';
+    this.notificationColor = COLORS.cyan;
+    this.notificationTimer = 0;
     this.bossDeathTimer = null;
     this.rafId = 0;
     this.lastTime = 0;
@@ -57,8 +66,13 @@ export default class Game {
     this.pixelRatio = 1;
     this._resize = this._resize.bind(this);
     this._frame = this._frame.bind(this);
+    this._onFullscreenChange = this._onFullscreenChange.bind(this);
+    this._toggleFullscreen = this._toggleFullscreen.bind(this);
     window.addEventListener('resize', this._resize);
+    document.addEventListener('fullscreenchange', this._onFullscreenChange);
+    this.fullscreenButton?.addEventListener('click', this._toggleFullscreen);
     this._resize();
+    this._onFullscreenChange();
     console.info('[game] State -> MENU');
   }
 
@@ -110,6 +124,9 @@ export default class Game {
     this.ui.update(dt);
     this.fade = Math.max(0, this.fade - dt * 1.8);
     this.shakeDuration = Math.max(0, this.shakeDuration - dt);
+    this.screenFlash = Math.max(0, this.screenFlash - dt);
+    this.notificationTimer = Math.max(0, this.notificationTimer - dt);
+    if (this.input.wasPressed('fullscreen')) this._toggleFullscreen();
 
     if (this.upgradeWindowOpen) {
       this.particles.update(dt);
@@ -183,10 +200,12 @@ export default class Game {
     while (this.nextWave < this.waveMilestones.length && this.distance >= this.waveMilestones[this.nextWave]) {
       this.enemies.triggerWave(this.nextWave + 1, this.width, this.height);
       console.info(`[game] Wave ${this.nextWave + 1} deployed at ${Math.round(this.distance)} units.`);
+      this._announce(`WAVE ${this.nextWave + 1} // HOSTILES DETECTED`, COLORS.warning, 1.8);
       this.nextWave += 1;
     }
     if (this.distance >= GAME.LEVEL_LENGTH && this.nextWave >= this.waveMilestones.length && this.enemies.isClear()) {
       console.info('[game] Level clear. Mother Ship incoming.');
+      this._announce('THREAT SIGNATURE // MOTHER SHIP INBOUND', '#ff9fe6', 2.5);
       this._setState(STATES.BOSS);
     }
   }
@@ -210,11 +229,15 @@ export default class Game {
       this._shake(0.45, 11);
       this.audio.playSound('bossArrival');
       console.info('[game] Mother Ship shields disengaged.');
+      this._announce('MOTHER SHIP // SHIELDS DOWN', '#ffb4ec', 2.1);
+      this._flash('#bd7dff', 0.2);
     }
     if (bossEvent.phaseChanged) {
       this._shake(0.32, 9);
       this.audio.playSound('bossPhase');
       console.info(`[game] Mother Ship phase ${this.boss.phase}.`);
+      this._announce(`WARNING // MOTHER SHIP PHASE ${this.boss.phase}`, COLORS.danger, 1.8);
+      this._flash('#ff5b8b', 0.16);
     }
     this.bullets.update(dt, this.width, this.height);
     this.particles.update(dt);
@@ -255,6 +278,7 @@ export default class Game {
         if (this.player.takeDamage(bullet.damage)) {
           this.particles.sparks(this.player.x, this.player.y, '#ff8b9d', 8);
           this.audio.playSound('playerHit');
+          this._flash('#ff5a72', 0.11);
         }
         this.bullets.release(bullet);
       }
@@ -265,6 +289,7 @@ export default class Game {
       if (this.player.takeDamage(enemy.type.id === 'heavy' ? 50 : 28)) {
         this.particles.sparks(this.player.x, this.player.y, '#ff8b9d', 10);
         this.audio.playSound('playerHit');
+        this._flash('#ff5a72', 0.11);
       }
       this._destroyEnemy(enemy, true);
     }
@@ -313,6 +338,7 @@ export default class Game {
     this.player.laserLockout = 0;
     this.audio.playSound('weaponSwitch');
     console.info(`[game] Weapon armed -> ${selected.name}`);
+    this._announce(`${selected.name} // ARMED`, selected.color, 1.1);
   }
 
   _detonateNova(bullet) {
@@ -448,6 +474,8 @@ export default class Game {
     this._shake(1.0, 19);
     this.audio.playSound('bossExplosion');
     console.info('[game] Mother Ship destroyed. Victory transition armed.');
+    this._announce('THREAT ELIMINATED // SECTOR SECURED', COLORS.health, 2.5);
+    this._flash('#ffffff', 0.34);
   }
 
   _checkPlayerDeath() {
@@ -471,8 +499,53 @@ export default class Game {
   }
 
   _shake(duration, power) {
-    this.shakeDuration = Math.max(this.shakeDuration, duration);
+    if (duration >= this.shakeDuration) {
+      this.shakeDuration = duration;
+      this.shakeMaxDuration = duration;
+      this.shakePower = power;
+      return;
+    }
     this.shakePower = Math.max(this.shakePower, power);
+  }
+
+  _flash(color, duration) {
+    if (duration >= this.screenFlash) {
+      this.screenFlashColor = color;
+      this.screenFlash = duration;
+      this.screenFlashMax = duration;
+    }
+  }
+
+  _announce(message, color = COLORS.cyan, duration = 1.4) {
+    this.notificationText = message;
+    this.notificationColor = color;
+    this.notificationTimer = duration;
+  }
+
+  /** Toggles browser fullscreen for the game frame, with a graceful unsupported fallback. */
+  async _toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        if (!document.exitFullscreen) throw new Error('Fullscreen exit is not supported.');
+        await document.exitFullscreen();
+      } else {
+        const target = this.canvas.parentElement;
+        if (!target?.requestFullscreen) throw new Error('Fullscreen API is not supported.');
+        await target.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn('[game] Fullscreen request was blocked or unavailable.', error);
+      this._announce('FULL SCREEN UNAVAILABLE', COLORS.danger, 1.6);
+    }
+  }
+
+  _onFullscreenChange() {
+    this.isFullscreen = Boolean(document.fullscreenElement);
+    if (this.fullscreenButton) {
+      this.fullscreenButton.innerHTML = this.isFullscreen ? 'EXIT FULL SCREEN <span>⛶</span>' : 'FULL SCREEN <span>⛶</span>';
+      this.fullscreenButton.setAttribute('aria-label', this.isFullscreen ? 'Exit full screen' : 'Enter full screen');
+    }
+    requestAnimationFrame(this._resize);
   }
 
   /** Draws world systems in depth order, then the state-specific UI layer. */
@@ -481,7 +554,7 @@ export default class Game {
     ctx.clearRect(0, 0, this.width, this.height);
     ctx.save();
     if (this.shakeDuration > 0) {
-      const magnitude = this.shakePower * (this.shakeDuration / Math.max(this.shakeDuration, 0.001));
+      const magnitude = this.shakePower * (this.shakeDuration / Math.max(this.shakeMaxDuration, 0.001));
       ctx.translate((Math.random() - 0.5) * magnitude, (Math.random() - 0.5) * magnitude);
     }
     this.background.render(ctx);
@@ -496,6 +569,7 @@ export default class Game {
     }
     ctx.restore();
     this.ui.renderFrame(ctx, this.width, this.height, this.state);
+    this.ui.renderScreenFlash(ctx, this.width, this.height, this.screenFlash, this.screenFlashMax, this.screenFlashColor);
 
     if (this.state === STATES.MENU) this.ui.renderMenu(ctx, this.width, this.height, this.selectedShip, this.selectedWeapon, this.menuFocus, this.hangar);
     else if (this.state === STATES.PLAYING) this.ui.renderHUD(ctx, this);
@@ -504,6 +578,7 @@ export default class Game {
       this.ui.renderBossHUD(ctx, this);
     } else this.ui.renderTerminal(ctx, this.width, this.height, this.state, this.score);
 
+    if (this.notificationTimer > 0 && !this.upgradeWindowOpen) this.ui.renderNotification(ctx, this.width, this.height, this);
     if (this.upgradeWindowOpen) this.ui.renderUpgradeWindow(ctx, this.width, this.height, this);
     this.ui.renderFade(ctx, this.width, this.height, this.fade);
   }
@@ -514,6 +589,8 @@ export default class Game {
     this.running = false;
     cancelAnimationFrame(this.rafId);
     window.removeEventListener('resize', this._resize);
+    document.removeEventListener('fullscreenchange', this._onFullscreenChange);
+    this.fullscreenButton?.removeEventListener('click', this._toggleFullscreen);
     this.input.destroy();
     this.bullets.clear();
     this.enemies.clear();

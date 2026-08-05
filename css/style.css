@@ -90,3 +90,54 @@ kbd {
   .titlebar { margin-bottom: 6px; }
   .controls { font-size: .57rem; }
 }
+
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+}
+
+.fullscreen-button {
+  border: 1px solid rgba(103, 211, 255, .55);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #d9f6ff;
+  background: rgba(11, 27, 57, .78);
+  box-shadow: inset 0 0 12px rgba(74, 192, 255, .12);
+  cursor: pointer;
+  font: 700 .68rem/1 "Trebuchet MS", "Segoe UI", sans-serif;
+  letter-spacing: .08em;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.fullscreen-button:hover,
+.fullscreen-button:focus-visible {
+  border-color: #69e8ff;
+  background: rgba(32, 72, 122, .9);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.fullscreen-button span { color: #68ebff; font-size: 1rem; vertical-align: -1px; }
+
+.canvas-frame:fullscreen {
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: #02030b;
+  box-shadow: none;
+}
+
+.canvas-frame:fullscreen canvas {
+  width: min(100vw, 177.7778vh);
+  height: min(100vh, 56.25vw);
+}
+
+@media (max-width: 620px) {
+  .fullscreen-button { padding: 3px 5px; font-size: .55rem; }
+  .title-actions { gap: .35rem; }
+}

@@ -138,6 +138,44 @@ export default class UI {
     else text(ctx, `PHASE ${boss.phase} // ${boss.phase === 1 ? 'TRACKING' : boss.phase === 2 ? 'BEAM ARRAY' : 'BERSERK'}`, width / 2, 157, 10, COLORS.warning, 'center');
   }
 
+  /** Flashes an impact tint over the combat world without obscuring the HUD. */
+  renderScreenFlash(ctx, width, height, timer, maxTimer, color) {
+    if (timer <= 0 || maxTimer <= 0) return;
+    const alpha = Math.min(.26, (timer / maxTimer) * .2);
+    ctx.save();
+    const wash = ctx.createRadialGradient(width * .5, height * .5, 10, width * .5, height * .5, Math.max(width, height) * .7);
+    wash.addColorStop(0, `rgba(255,255,255,${alpha * .2})`);
+    wash.addColorStop(.55, color);
+    wash.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, width, height);
+    ctx.globalAlpha = alpha * .8;
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  /** Displays a short tactical message with a crisp, animated command-panel treatment. */
+  renderNotification(ctx, width, height, game) {
+    const message = game.notificationText;
+    if (!message) return;
+    const y = game.state === 'BOSS' ? 184 : 105;
+    const panelWidth = Math.min(width * .52, 510);
+    const x = width / 2 - panelWidth / 2;
+    const alpha = Math.min(1, game.notificationTimer * 3);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(5, 13, 35, .86)';
+    ctx.fillRect(x, y - 17, panelWidth, 34);
+    ctx.strokeStyle = game.notificationColor; ctx.lineWidth = 1.2; ctx.shadowColor = game.notificationColor; ctx.shadowBlur = 10;
+    ctx.strokeRect(x, y - 17, panelWidth, 34);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = game.notificationColor; ctx.fillRect(x + 7, y - 10, 3, 20);
+    text(ctx, message, width / 2, y, 12, COLORS.ink, 'center');
+    ctx.restore();
+  }
+
   /** Adds a subtle cockpit overlay, scanlines and sci-fi corner brackets to every screen. */
   renderFrame(ctx, width, height, state) {
     ctx.save();

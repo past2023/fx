@@ -177,6 +177,14 @@ export default class Boss {
     ctx.globalAlpha = 0.92;
     ctx.strokeStyle = '#ffd4f3'; ctx.lineWidth = 3; ctx.shadowBlur = 8;
     ctx.beginPath(); ctx.moveTo(this.x - 55, this.y); ctx.lineTo(endX, endY); ctx.stroke();
+    ctx.globalAlpha = 0.62;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+    ctx.setLineDash([10, 16]); ctx.lineDashOffset = -this.age * 140;
+    ctx.beginPath(); ctx.moveTo(this.x - 55, this.y); ctx.lineTo(endX, endY); ctx.stroke();
+    ctx.setLineDash([]);
+    const source = ctx.createRadialGradient(this.x - 55, this.y, 2, this.x - 55, this.y, 38);
+    source.addColorStop(0, 'rgba(255,255,255,.95)'); source.addColorStop(.25, '#ff7be1'); source.addColorStop(1, 'rgba(255,72,204,0)');
+    ctx.globalAlpha = pulse; ctx.fillStyle = source; ctx.beginPath(); ctx.arc(this.x - 55, this.y, 38, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 
@@ -211,6 +219,15 @@ export default class Boss {
     ctx.beginPath(); ctx.arc(20, 0, 9, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#ff5bd3';
     ctx.beginPath(); ctx.arc(-35, -33, 7, 0, Math.PI * 2); ctx.arc(-35, 33, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(194, 221, 255, .45)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-82, -22); ctx.lineTo(-20, -22); ctx.moveTo(-82, 22); ctx.lineTo(-20, 22); ctx.stroke();
+    for (let index = 0; index < 4; index += 1) {
+      const orbit = this.age * (1.5 + index * .14) + index * Math.PI * .5;
+      const ox = 20 + Math.cos(orbit) * 36;
+      const oy = Math.sin(orbit) * 36;
+      ctx.fillStyle = index % 2 ? '#78eaff' : '#ff9be5'; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 11;
+      ctx.beginPath(); ctx.arc(ox, oy, 2.2, 0, Math.PI * 2); ctx.fill();
+    }
     if (!this.entered) {
       ctx.globalAlpha = 0.45 + pulse * 0.2;
       ctx.strokeStyle = COLORS.cyan; ctx.lineWidth = 3; ctx.shadowColor = COLORS.cyan;

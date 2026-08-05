@@ -62,6 +62,10 @@ class Enemy {
     ctx.lineWidth = 1;
     ctx.shadowColor = this.type.color;
     ctx.shadowBlur = 10;
+    const enginePulse = .42 + Math.sin(this.age * 13 + this.phase) * .18;
+    ctx.globalAlpha = enginePulse;
+    ctx.beginPath(); ctx.moveTo(-this.type.w * .65, 0); ctx.lineTo(-this.type.w * .2, -5); ctx.lineTo(-this.type.w * .2, 5); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.beginPath();
     if (this.type.id === 'scout') {
       ctx.moveTo(-16, 0); ctx.lineTo(13, -12); ctx.lineTo(17, 0); ctx.lineTo(13, 12); ctx.closePath();
@@ -76,6 +80,13 @@ class Enemy {
     }
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(238, 250, 255, .48)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-this.type.w * .24, 0); ctx.lineTo(this.type.w * .25, 0); ctx.stroke();
+    if (this.type.id !== 'drone') {
+      ctx.fillStyle = '#fff0f5'; ctx.shadowColor = this.type.color; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(this.type.w * .14, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
     if (this.hp < this.maxHp && this.type.id !== 'drone') {
       ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(5, 8, 20, .75)';
