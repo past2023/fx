@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a1a" />
+  <title>Starfall: Level 1</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="game-shell" aria-label="Starfall space shooter">
+    <div class="titlebar">
+      <span class="eyebrow">STARFALL // SECTOR 01</span>
+      <span class="status-dot">SYSTEMS ONLINE</span>
+    </div>
+    <div class="canvas-frame">
+      <canvas id="gameCanvas" width="1280" height="720" aria-label="Starfall game canvas">
+        Your browser does not support HTML5 Canvas.
+      </canvas>
+    </div>
+    <p class="controls">MOVE <kbd>WASD</kbd><kbd>← ↑ ↓ →</kbd> &nbsp; FIRE / CONFIRM <kbd>SPACE</kbd> &nbsp; CONFIRM <kbd>ENTER</kbd></p>
+  </main>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
