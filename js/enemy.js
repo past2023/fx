@@ -49,7 +49,7 @@ class Enemy {
 
   getBounds() { return { x: this.x - this.type.w / 2, y: this.y - this.type.h / 2, w: this.type.w, h: this.type.h }; }
 
-  render(ctx, assets) {
+  render(ctx, assets, lowFX = false) {
     const sprite = assets?.images?.[this.type.id];
     if (sprite) {
       ctx.drawImage(sprite, this.x - this.type.w / 2, this.y - this.type.h / 2, this.type.w, this.type.h);
@@ -61,7 +61,7 @@ class Enemy {
     ctx.strokeStyle = '#eaf6ff';
     ctx.lineWidth = 1;
     ctx.shadowColor = this.type.color;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = lowFX ? 0 : 10;
     const enginePulse = .42 + Math.sin(this.age * 13 + this.phase) * .18;
     ctx.globalAlpha = enginePulse;
     ctx.beginPath(); ctx.moveTo(-this.type.w * .65, 0); ctx.lineTo(-this.type.w * .2, -5); ctx.lineTo(-this.type.w * .2, 5); ctx.closePath(); ctx.fill();
@@ -84,7 +84,7 @@ class Enemy {
     ctx.strokeStyle = 'rgba(238, 250, 255, .48)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(-this.type.w * .24, 0); ctx.lineTo(this.type.w * .25, 0); ctx.stroke();
     if (this.type.id !== 'drone') {
-      ctx.fillStyle = '#fff0f5'; ctx.shadowColor = this.type.color; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#fff0f5'; ctx.shadowColor = this.type.color; ctx.shadowBlur = lowFX ? 0 : 8;
       ctx.beginPath(); ctx.arc(this.type.w * .14, 0, 2.5, 0, Math.PI * 2); ctx.fill();
     }
     if (this.hp < this.maxHp && this.type.id !== 'drone') {
@@ -221,8 +221,8 @@ class PowerUp {
  * Schedules Level 1 waves and owns pooled enemy plus power-up entities.
  */
 export default class EnemyManager {
-  constructor() {
-    this.pool = new Pool(() => new Enemy(), GAME.MAX_ENEMIES);
+  constructor(maxEnemies = GAME.MAX_ENEMIES) {
+    this.pool = new Pool(() => new Enemy(), maxEnemies);
     this.powerupPool = new Pool(() => new PowerUp(), 20);
     this.coinPool = new Pool(() => new Coin(), GAME.MAX_COINS);
     this.bombPool = new Pool(() => new BombPickup(), GAME.MAX_BOMBS);
@@ -379,8 +379,8 @@ export default class EnemyManager {
   }
 
   /** Draws active enemies and collectibles. */
-  render(ctx, assets) {
-    for (const enemy of this.pool.items) if (enemy.active) enemy.render(ctx, assets);
+  render(ctx, assets, lowFX = false) {
+    for (const enemy of this.pool.items) if (enemy.active) enemy.render(ctx, assets, lowFX);
     for (const powerup of this.powerupPool.items) if (powerup.active) powerup.render(ctx);
     for (const coin of this.coinPool.items) if (coin.active) coin.render(ctx);
     for (const bomb of this.bombPool.items) if (bomb.active) bomb.render(ctx);

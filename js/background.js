@@ -5,7 +5,8 @@ import { COLORS, TUNING } from './constants.js';
  * and high-speed foreground streaks that sell the level's forward momentum.
  */
 export default class Background {
-  constructor() {
+  constructor(quality = 1) {
+    this.quality = quality;
     this.width = 1280;
     this.height = 720;
     this.far = [];
@@ -18,14 +19,17 @@ export default class Background {
     this.time = 0;
   }
 
+  /** Adjusts visual density for lower-power devices before the next resize. */
+  setQuality(quality) { this.quality = Math.max(.3, Math.min(1, quality)); }
+
   /** Regenerates all procedural background layers for the current logical canvas dimensions. */
   resize(width, height) {
     this.width = width;
     this.height = height;
-    this.far = this._makeStars(90, 0.4, 1.2, 0.55);
-    this.near = this._makeStars(62, 0.75, 2.0, 0.78);
-    this.mid = this._makeStars(38, 1.0, 2.8, 0.92);
-    this.foreground = this._makeStreaks(22);
+    this.far = this._makeStars(Math.round(90 * this.quality), 0.4, 1.2, 0.55);
+    this.near = this._makeStars(Math.round(62 * this.quality), 0.75, 2.0, 0.78);
+    this.mid = this._makeStars(Math.round(38 * this.quality), 1.0, 2.8, 0.92);
+    this.foreground = this._makeStreaks(Math.max(6, Math.round(22 * this.quality)));
     this.asteroids.length = 0;
     this.asteroidTimer = TUNING.BACKGROUND.ASTEROID_MIN_INTERVAL + Math.random() * TUNING.BACKGROUND.ASTEROID_INTERVAL_VARIANCE;
   }
@@ -102,7 +106,7 @@ export default class Background {
 
   _updateAsteroids(dt) {
     this.asteroidTimer -= dt;
-    if (this.asteroidTimer <= 0 && this.asteroids.length < 3) {
+    if (this.asteroidTimer <= 0 && this.asteroids.length < (this.quality < .8 ? 1 : 3)) {
       this._spawnAsteroid();
       this.asteroidTimer += TUNING.BACKGROUND.ASTEROID_MIN_INTERVAL + Math.random() * TUNING.BACKGROUND.ASTEROID_INTERVAL_VARIANCE;
     }

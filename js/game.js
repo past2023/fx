@@ -27,10 +27,15 @@ export default class Game {
     this.assets = assets;
     this.audio = new AudioManager(assets);
     this.input = new InputManager(window, () => this.audio.unlock());
-    this.background = new Background();
-    this.bullets = new BulletPool();
-    this.enemies = new EnemyManager();
-    this.particles = new ParticleSystem();
+    this.isMobile = Boolean(window.matchMedia?.('(pointer: coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(globalThis.navigator?.userAgent || ''));
+    this.lowFX = this.isMobile;
+    this.performanceProfile = this.isMobile
+      ? { particleCap: 140, particleQuality: .48, enemyCap: 48, bulletCap: 120, backgroundQuality: .58 }
+      : { particleCap: GAME.MAX_PARTICLES, particleQuality: 1, enemyCap: GAME.MAX_ENEMIES, bulletCap: GAME.MAX_BULLETS, backgroundQuality: 1 };
+    this.background = new Background(this.performanceProfile.backgroundQuality);
+    this.bullets = new BulletPool(this.performanceProfile.bulletCap);
+    this.enemies = new EnemyManager(this.performanceProfile.enemyCap);
+    this.particles = new ParticleSystem(this.performanceProfile.particleCap, this.performanceProfile.particleQuality);
     this.boss = new Boss();
     this.ui = new UI();
     this.hangar = this._loadHangar();
@@ -107,7 +112,7 @@ export default class Game {
     const displayHeight = Math.max(180, Math.round(rect.height || (displayWidth * 9 / 16)));
     this.width = displayWidth;
     this.height = displayHeight;
-    this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    this.pixelRatio = Math.min(window.devicePixelRatio || 1, this.isMobile ? 1 : 2);
     this.canvas.width = Math.round(displayWidth * this.pixelRatio);
     this.canvas.height = Math.round(displayHeight * this.pixelRatio);
     this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
@@ -322,6 +327,7 @@ export default class Game {
       bomb.active = false;
       this.particles.bombCollect(bomb.x, bomb.y);
       this.audio.playSound('bombCollect');
+      if (this.isMobile) globalThis.navigator?.vibrate?.(18);
       this._announce(`VOID BOMB ACQUIRED // ${this.player.bombs}/${this.player.maxBombs}`, '#ffae75', 1.3);
     }
   }
@@ -362,6 +368,7 @@ export default class Game {
       if (this.boss.dead) this._destroyBoss();
     }
     this.particles.bombBlast(this.player.x, this.player.y);
+    if (this.isMobile) globalThis.navigator?.vibrate?.([18, 35, 42]);
     this._shake(.52, 16);
     this._flash('#ffb36c', .28);
     this.audio.playSound('bomb');
@@ -601,14 +608,14 @@ export default class Game {
 
     if (this.state !== STATES.MENU) {
       if (this.state === STATES.BOSS) this.boss.renderLaser(ctx);
-      this.particles.render(ctx);
-      this.enemies.render(ctx, this.assets);
+      this.particles.render(ctx, this.lowFX);
+      this.enemies.render(ctx, this.assets, this.lowFX);
       if (this.state === STATES.BOSS) this.boss.render(ctx, this.assets);
-      this.bullets.render(ctx);
+      this.bullets.render(ctx, this.lowFX);
       this.player?.render(ctx, this.assets);
     }
     ctx.restore();
-    this.ui.renderFrame(ctx, this.width, this.height, this.state);
+    this.ui.renderFrame(ctx, this.width, this.height, this.state, this.lowFX);
     this.ui.renderScreenFlash(ctx, this.width, this.height, this.screenFlash, this.screenFlashMax, this.screenFlashColor);
 
     if (this.state === STATES.MENU) this.ui.renderMenu(ctx, this.width, this.height, this.selectedShip, this.selectedWeapon, this.menuFocus, this.hangar);

@@ -85,7 +85,8 @@ class Bullet {
     return { x: this.x - this.w / 2, y: this.y - this.h / 2, w: this.w, h: this.h };
   }
 
-  render(ctx) {
+  render(ctx, lowFX = false) {
+    if (lowFX) { this._renderLowFX(ctx); return; }
     if (this.type === 'laser') {
       this._renderLaser(ctx);
       return;
@@ -118,6 +119,24 @@ class Bullet {
       tail.addColorStop(1, '#ffffff');
       ctx.fillStyle = tail;
       ctx.fillRect(this.x - this.w * 1.5, this.y - this.h / 2, this.w * 2, this.h);
+    }
+    ctx.restore();
+  }
+
+  _renderLowFX(ctx) {
+    ctx.save();
+    ctx.globalAlpha = .9;
+    ctx.fillStyle = this.color;
+    ctx.strokeStyle = this.color;
+    if (this.type === 'laser') {
+      ctx.lineWidth = 9;
+      ctx.beginPath(); ctx.moveTo(this.x - this.w / 2, this.y); ctx.lineTo(this.x + this.w / 2, this.y); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(this.x - this.w / 2, this.y); ctx.lineTo(this.x + this.w / 2, this.y); ctx.stroke();
+    } else if (this.type === 'enemyOrb' || this.type === 'nova' || this.type === 'pulse') {
+      ctx.beginPath(); ctx.arc(this.x, this.y, Math.max(3, this.w / 2), 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillRect(this.x - this.w / 2, this.y - this.h / 2, this.w, this.h);
     }
     ctx.restore();
   }
@@ -232,8 +251,8 @@ export default class BulletPool {
   }
 
   /** Draws all active projectiles. */
-  render(ctx) {
-    for (const bullet of this.pool.items) if (bullet.active) bullet.render(ctx);
+  render(ctx, lowFX = false) {
+    for (const bullet of this.pool.items) if (bullet.active) bullet.render(ctx, lowFX);
   }
 
   /** Deactivates one projectile after an impact. */

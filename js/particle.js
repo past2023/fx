@@ -42,9 +42,13 @@ class Particle {
  * Capped particle pool for engine trails, weapon fire, impacts and destruction bursts.
  */
 export default class ParticleSystem {
-  constructor(max = GAME.MAX_PARTICLES) {
+  constructor(max = GAME.MAX_PARTICLES, quality = 1) {
     this.pool = new Pool(() => new Particle(), max);
+    this.quality = Math.max(.3, Math.min(1, quality));
   }
+
+  /** Adjusts emission density without changing gameplay or collision behavior. */
+  setQuality(quality) { this.quality = Math.max(.3, Math.min(1, quality)); }
 
   _spawn(x, y, vx, vy, life, size, color, options) {
     const particle = this.pool.get();
@@ -61,7 +65,7 @@ export default class ParticleSystem {
   muzzle(x, y, color, intensity = 1) {
     this._spawn(x, y, -35 * intensity, 0, 0.13, 7 * intensity, color, { kind: 'ring', grow: 34 * intensity, drag: 0 });
     this._spawn(x, y, 45 * intensity, 0, 0.11, 11 * intensity, '#ffffff', { kind: 'flare', drag: 4 });
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0, count = Math.max(2, Math.round(5 * this.quality)); i < count; i += 1) {
       const angle = (Math.random() - 0.5) * 0.94;
       const speed = (100 + Math.random() * 150) * intensity;
       this._spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0.12 + Math.random() * 0.1, 1.6 + Math.random() * 2.4, color, { kind: 'spark', drag: 3.6 });
@@ -72,7 +76,7 @@ export default class ParticleSystem {
   laserMuzzle(x, y, color) {
     this._spawn(x, y, 0, 0, 0.14, 6, color, { kind: 'ring', grow: 25, drag: 0 });
     this._spawn(x, y, 68, 0, 0.1, 9, '#ffffff', { kind: 'flare', drag: 5 });
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0, count = Math.max(2, Math.round(4 * this.quality)); i < count; i += 1) {
       const offset = (Math.random() - 0.5) * 16;
       this._spawn(x + Math.random() * 18, y + offset, 55 + Math.random() * 145, offset * 2, 0.1 + Math.random() * 0.08, 1.1 + Math.random() * 1.8, color, { kind: 'spark', drag: 4 });
     }
@@ -80,7 +84,7 @@ export default class ParticleSystem {
 
   /** Places intermittent ion fragments along a sustained beam for a living energy effect. */
   laserBeam(x, y, width, color) {
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0, count = Math.max(1, Math.round(3 * this.quality)); index < count; index += 1) {
       const beamX = x + 20 + Math.random() * Math.max(20, width - 30);
       const offset = (Math.random() - 0.5) * 11;
       this._spawn(beamX, y + offset, 35 + Math.random() * 90, (Math.random() - .5) * 25, .075 + Math.random() * .055, 1 + Math.random() * 1.7, color, { kind: 'spark', drag: 5 });
@@ -89,7 +93,8 @@ export default class ParticleSystem {
 
   /** Emits a compact hit-spark cluster. */
   sparks(x, y, color = '#fff5a5', count = 5) {
-    for (let i = 0; i < count; i += 1) {
+    const emitCount = Math.max(1, Math.round(count * this.quality));
+    for (let i = 0; i < emitCount; i += 1) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 45 + Math.random() * 120;
       this._spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0.15 + Math.random() * 0.2, 1.5 + Math.random() * 2, color, { kind: 'spark', drag: 3 });
@@ -100,7 +105,8 @@ export default class ParticleSystem {
   explosion(x, y, color = '#ff765f', count = 24, scale = 1) {
     this._spawn(x, y, 0, 0, 0.32 + scale * 0.08, 8 * scale, color, { kind: 'ring', grow: 140 * scale, drag: 0 });
     const palette = [color, '#fff3c1', '#ffb347', '#ff5e78'];
-    for (let i = 0; i < count; i += 1) {
+    const emitCount = Math.max(1, Math.round(count * this.quality));
+    for (let i = 0; i < emitCount; i += 1) {
       const angle = Math.random() * Math.PI * 2;
       const speed = (55 + Math.random() * 250) * scale;
       this._spawn(
@@ -142,17 +148,20 @@ export default class ParticleSystem {
   update(dt) { for (const particle of this.pool.items) particle.update(dt); }
 
   /** Draws additive fading particles, sparks and shockwaves in one pass. */
-  render(ctx) {
+  render(ctx, lowFX = false) {
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = lowFX ? 'source-over' : 'lighter';
+    let renderIndex = 0;
     for (const particle of this.pool.items) {
       if (!particle.active) continue;
+      renderIndex += 1;
+      if (lowFX && particle.kind === 'orb' && renderIndex % 2 === 0) continue;
       const ratio = particle.life / particle.maxLife;
       ctx.globalAlpha = Math.max(0, ratio);
       ctx.strokeStyle = particle.color;
       ctx.fillStyle = particle.color;
       ctx.shadowColor = particle.color;
-      ctx.shadowBlur = particle.kind === 'ring' ? 11 : 7;
+      ctx.shadowBlur = lowFX ? 0 : particle.kind === 'ring' ? 11 : 7;
       if (particle.kind === 'ring') {
         const radius = particle.size + (1 - ratio) * particle.grow;
         ctx.lineWidth = Math.max(0.7, 2.3 * ratio);
@@ -167,12 +176,17 @@ export default class ParticleSystem {
         ctx.stroke();
       } else if (particle.kind === 'flare') {
         const radius = Math.max(1, particle.size * (0.45 + ratio * 0.65));
-        const flare = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, radius);
-        flare.addColorStop(0, '#ffffff');
-        flare.addColorStop(.3, particle.color);
-        flare.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = flare;
-        ctx.beginPath(); ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2); ctx.fill();
+        if (lowFX) {
+          ctx.fillStyle = particle.color;
+          ctx.beginPath(); ctx.arc(particle.x, particle.y, radius * .55, 0, Math.PI * 2); ctx.fill();
+        } else {
+          const flare = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, radius);
+          flare.addColorStop(0, '#ffffff');
+          flare.addColorStop(.3, particle.color);
+          flare.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = flare;
+          ctx.beginPath(); ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2); ctx.fill();
+        }
       } else {
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, Math.max(0.35, particle.size * ratio), 0, Math.PI * 2);

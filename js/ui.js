@@ -186,11 +186,11 @@ export default class UI {
   }
 
   /** Adds a subtle cockpit overlay, scanlines and sci-fi corner brackets to every screen. */
-  renderFrame(ctx, width, height, state) {
+  renderFrame(ctx, width, height, state, lowFX = false) {
     ctx.save();
     ctx.globalAlpha = state === 'MENU' ? 0.16 : 0.11;
     ctx.fillStyle = '#b9e8ff';
-    for (let y = 3; y < height; y += 4) ctx.fillRect(0, y, width, 1);
+    for (let y = 3; y < height; y += (lowFX ? 10 : 4)) ctx.fillRect(0, y, width, 1);
     ctx.globalAlpha = 0.42;
     ctx.strokeStyle = 'rgba(105, 214, 255, .58)'; ctx.lineWidth = 1;
     const inset = 12; const arm = 24;

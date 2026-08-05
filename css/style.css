@@ -218,11 +218,11 @@ kbd {
 }
 
 @media (pointer: coarse) and (orientation: landscape) {
-  .action-fullscreen {
-    left: 39%;
-    top: 39%;
-    width: 24%;
-    height: 24%;
+  .mobile-controls > .action-fullscreen {
+    top: 38px;
+    right: clamp(10px, 2vw, 28px);
+    width: clamp(30px, 5vw, 44px);
+    height: clamp(30px, 5vw, 44px);
     font-size: clamp(.75rem, 1.5vw, 1rem);
     background: rgba(18, 42, 84, .9);
   }
