@@ -1,4 +1,4 @@
-import { ECONOMY, GAME, SHIPS, STATES, TUNING, WEAPONS } from './constants.js';
+import { ECONOMY, GAME, SHIPS, SHIP_UPGRADES, STATES, TUNING, WEAPONS } from './constants.js';
 import AudioManager from './assetLoader.js';
 import InputManager from './input.js';
 import Background from './background.js';
@@ -33,6 +33,8 @@ export default class Game {
     this.ui = new UI();
     this.hangar = this._loadHangar();
     this.runCoins = 0;
+    this.upgradeWindowOpen = false;
+    this.upgradeSelection = 0;
     this.player = null;
     this.weapon = null;
     this.state = STATES.MENU;
@@ -109,6 +111,12 @@ export default class Game {
     this.fade = Math.max(0, this.fade - dt * 1.8);
     this.shakeDuration = Math.max(0, this.shakeDuration - dt);
 
+    if (this.upgradeWindowOpen) {
+      this.particles.update(dt);
+      this._updateUpgradeWindow();
+      return;
+    }
+
     switch (this.state) {
       case STATES.MENU: this._updateMenu(); break;
       case STATES.PLAYING: this._updatePlaying(dt); break;
@@ -131,7 +139,7 @@ export default class Game {
       else this.selectedWeapon = (this.selectedWeapon + horizontal + WEAPONS.length) % WEAPONS.length;
       this.audio.playSound('menuMove');
     }
-    if (this.input.wasPressed('upgrade')) this._tryUpgradeSelectedShip();
+    if (this.input.wasPressed('upgrade')) this._openUpgradeWindow();
     if (this.input.wasPressed('start')) this._beginRun();
   }
 
@@ -141,11 +149,12 @@ export default class Game {
     this.nextWave = 0;
     this.bossDeathTimer = null;
     this.runCoins = 0;
+    this.upgradeWindowOpen = false;
     this.bullets.clear();
     this.enemies.clear();
     this.particles.clear();
     const selectedShip = SHIPS[this.selectedShip];
-    this.player = new Player(selectedShip, this._shipLevel(selectedShip.id));
+    this.player = new Player(selectedShip, this._shipUpgrades(selectedShip.id));
     this.player.place(this.width, this.height);
     this.weapon = new WeaponSystem(WEAPONS[this.selectedWeapon]);
     this.boss.reset(this.width, this.height);
@@ -161,11 +170,13 @@ export default class Game {
     this.player = null;
     this.weapon = null;
     this.bossDeathTimer = null;
+    this.upgradeWindowOpen = false;
     this.audio.stopMusic();
     this._setState(STATES.MENU);
   }
 
   _updatePlaying(dt) {
+    if (this.input.wasPressed('upgrade')) { this._openUpgradeWindow(); return; }
     this._updateCombatWorld(dt, false);
     if (this.state !== STATES.PLAYING) return;
     this.distance += GAME.LEVEL_SCROLL_SPEED * dt;
@@ -181,6 +192,7 @@ export default class Game {
   }
 
   _updateBoss(dt) {
+    if (this.input.wasPressed('upgrade')) { this._openUpgradeWindow(); return; }
     if (this.bossDeathTimer !== null) {
       this.player.update(dt, this.input, this.width, this.height, this.particles);
       this.particles.update(dt);
@@ -319,14 +331,20 @@ export default class Game {
   }
 
   _loadHangar() {
-    const fallback = { coins: 0, shipLevels: Object.fromEntries(SHIPS.map((ship) => [ship.id, 0])) };
+    const createModules = () => Object.fromEntries(SHIP_UPGRADES.map((module) => [module.id, 0]));
+    const fallback = { coins: 0, shipUpgrades: Object.fromEntries(SHIPS.map((ship) => [ship.id, createModules()])) };
     try {
-      const saved = JSON.parse(localStorage.getItem(ECONOMY.STORAGE_KEY) || 'null');
+      const raw = localStorage.getItem(ECONOMY.STORAGE_KEY) || localStorage.getItem(ECONOMY.LEGACY_STORAGE_KEY);
+      const saved = JSON.parse(raw || 'null');
       if (!saved || typeof saved !== 'object') return fallback;
-      for (const ship of SHIPS) {
-        fallback.shipLevels[ship.id] = Math.max(0, Math.min(ECONOMY.MAX_SHIP_LEVEL, Number(saved.shipLevels?.[ship.id]) || 0));
-      }
       fallback.coins = Math.max(0, Math.floor(Number(saved.coins) || 0));
+      for (const ship of SHIPS) {
+        const legacyLevel = Number(saved.shipLevels?.[ship.id]) || 0;
+        for (const module of SHIP_UPGRADES) {
+          const stored = saved.shipUpgrades?.[ship.id]?.[module.id];
+          fallback.shipUpgrades[ship.id][module.id] = Math.max(0, Math.min(ECONOMY.MAX_MODULE_LEVEL, Number(stored ?? legacyLevel) || 0));
+        }
+      }
     } catch (error) {
       console.warn('[game] Hangar save is unavailable; using a temporary wallet.', error);
     }
@@ -338,30 +356,69 @@ export default class Game {
     catch (error) { console.warn('[game] Could not save hangar progress.', error); }
   }
 
-  _shipLevel(shipId) { return this.hangar.shipLevels[shipId] || 0; }
-
-  _upgradeCost(shipId) {
-    return ECONOMY.SHIP_UPGRADE_BASE_COST + this._shipLevel(shipId) * ECONOMY.SHIP_UPGRADE_COST_STEP;
+  _shipUpgrades(shipId) {
+    return this.hangar.shipUpgrades[shipId] || Object.fromEntries(SHIP_UPGRADES.map((module) => [module.id, 0]));
   }
 
-  _tryUpgradeSelectedShip() {
-    const ship = SHIPS[this.selectedShip];
-    const level = this._shipLevel(ship.id);
-    if (level >= ECONOMY.MAX_SHIP_LEVEL) {
-      console.info(`[game] ${ship.name} is already at maximum upgrade level.`);
+  _upgradeCost(shipId, moduleId) {
+    const module = SHIP_UPGRADES.find((item) => item.id === moduleId);
+    const level = this._shipUpgrades(shipId)[moduleId] || 0;
+    return module.baseCost + level * module.costStep;
+  }
+
+  _openUpgradeWindow() {
+    if (this.state !== STATES.MENU && !this.player?.alive) return;
+    this.upgradeWindowOpen = true;
+    this.upgradeSelection = Math.min(this.upgradeSelection, SHIP_UPGRADES.length - 1);
+    this.audio.playSound('forgeOpen');
+  }
+
+  _closeUpgradeWindow() {
+    this.upgradeWindowOpen = false;
+    this.audio.playSound('forgeClose');
+  }
+
+  _updateUpgradeWindow() {
+    if (this.input.wasPressed('pause') || this.input.wasPressed('upgrade')) {
+      this._closeUpgradeWindow();
       return;
     }
-    const cost = this._upgradeCost(ship.id);
+    const direction = (this.input.wasPressed('right') || this.input.wasPressed('down') ? 1 : 0) - (this.input.wasPressed('left') || this.input.wasPressed('up') ? 1 : 0);
+    if (direction) {
+      this.upgradeSelection = (this.upgradeSelection + direction + SHIP_UPGRADES.length) % SHIP_UPGRADES.length;
+      this.audio.playSound('menuMove');
+    }
+    if (this.input.wasPressed('start')) this._buySelectedUpgrade();
+  }
+
+  _buySelectedUpgrade() {
+    const ship = this.player?.ship || SHIPS[this.selectedShip];
+    const module = SHIP_UPGRADES[this.upgradeSelection];
+    const upgrades = this._shipUpgrades(ship.id);
+    const level = upgrades[module.id] || 0;
+    if (level >= ECONOMY.MAX_MODULE_LEVEL) {
+      console.info(`[game] ${module.name} is already at maximum level.`);
+      this._shake(0.08, 2);
+      return;
+    }
+    const cost = this._upgradeCost(ship.id, module.id);
     if (this.hangar.coins < cost) {
-      console.info(`[game] Upgrade requires ${cost} coins; wallet contains ${this.hangar.coins}.`);
+      console.info(`[game] ${module.name} requires ${cost} coins; wallet contains ${this.hangar.coins}.`);
       this._shake(0.12, 3);
+      this.audio.playSound('upgradeDenied');
       return;
     }
     this.hangar.coins -= cost;
-    this.hangar.shipLevels[ship.id] = level + 1;
+    upgrades[module.id] = level + 1;
+    this.hangar.shipUpgrades[ship.id] = upgrades;
     this._saveHangar();
+    if (this.player?.ship.id === ship.id) {
+      this.player.applyUpgrades(upgrades);
+      this.particles.explosion(this.player.x, this.player.y, module.color, 20, 0.55);
+    }
+    this._shake(0.18, 5);
     this.audio.playSound('upgrade');
-    console.info(`[game] ${ship.name} upgraded to MK ${level + 1}.`);
+    console.info(`[game] ${ship.name} ${module.name} upgraded to level ${level + 1}.`);
   }
 
   _awardCoins(amount, collected) {
@@ -438,6 +495,7 @@ export default class Game {
       this.player?.render(ctx, this.assets);
     }
     ctx.restore();
+    this.ui.renderFrame(ctx, this.width, this.height, this.state);
 
     if (this.state === STATES.MENU) this.ui.renderMenu(ctx, this.width, this.height, this.selectedShip, this.selectedWeapon, this.menuFocus, this.hangar);
     else if (this.state === STATES.PLAYING) this.ui.renderHUD(ctx, this);
@@ -446,6 +504,7 @@ export default class Game {
       this.ui.renderBossHUD(ctx, this);
     } else this.ui.renderTerminal(ctx, this.width, this.height, this.state, this.score);
 
+    if (this.upgradeWindowOpen) this.ui.renderUpgradeWindow(ctx, this.width, this.height, this);
     this.ui.renderFade(ctx, this.width, this.height, this.fade);
   }
 

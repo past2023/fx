@@ -54,15 +54,18 @@ export const ENEMY_TYPES = Object.freeze({
 });
 
 export const ECONOMY = Object.freeze({
-  STORAGE_KEY: 'starfall-hangar-v1',
-  MAX_SHIP_LEVEL: 4,
-  SHIP_UPGRADE_BASE_COST: 20,
-  SHIP_UPGRADE_COST_STEP: 18,
-  HP_PER_LEVEL: 0.1,
-  SPEED_PER_LEVEL: 0.035,
-  COOLDOWN_REDUCTION_PER_LEVEL: 0.055,
+  STORAGE_KEY: 'starfall-hangar-v2',
+  LEGACY_STORAGE_KEY: 'starfall-hangar-v1',
+  MAX_MODULE_LEVEL: 4,
   BOSS_COIN_REWARD: 30,
 });
+
+/** Modular ship improvements available both in the hangar and at the in-run Field Forge. */
+export const SHIP_UPGRADES = Object.freeze([
+  Object.freeze({ id: 'hull', name: 'HULL PLATING', shortName: 'HULL', icon: '⬡', color: '#64e7a0', bonus: 0.12, label: '+12% MAX HULL', baseCost: 18, costStep: 16 }),
+  Object.freeze({ id: 'engine', name: 'THRUSTER MATRIX', shortName: 'ENGINES', icon: '➤', color: '#66d8ff', bonus: 0.06, label: '+6% THRUST', baseCost: 16, costStep: 17 }),
+  Object.freeze({ id: 'fire', name: 'FIRE CONTROL', shortName: 'FIRE CTRL', icon: '✦', color: '#ffb86b', bonus: 0.07, label: '-7% WEAPON CYCLE', baseCost: 20, costStep: 18 }),
+]);
 
 export const COLORS = Object.freeze({
   space: '#0a0a1a',

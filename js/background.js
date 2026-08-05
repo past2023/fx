@@ -10,6 +10,7 @@ export default class Background {
     this.far = [];
     this.near = [];
     this.nebulaOffset = 0;
+    this.time = 0;
   }
 
   /** Regenerates the star field to match the current logical canvas dimensions. */
@@ -27,6 +28,7 @@ export default class Background {
       r: minSize + Math.random() * (maxSize - minSize),
       a: 0.25 + Math.random() * 0.75,
       tint: Math.random() > 0.87 ? '#a9c7ff' : '#ffffff',
+      twinkle: Math.random() * Math.PI * 2,
     }));
   }
 
@@ -43,6 +45,7 @@ export default class Background {
 
   /** Advances parallax movement using seconds. */
   update(dt) {
+    this.time += dt;
     this.nebulaOffset = (this.nebulaOffset + TUNING.BACKGROUND.NEBULA_SPEED * dt) % this.width;
     this._updateLayer(this.far, TUNING.BACKGROUND.FAR_STAR_SPEED, dt);
     this._updateLayer(this.near, TUNING.BACKGROUND.NEAR_STAR_SPEED, dt);
@@ -70,13 +73,27 @@ export default class Background {
     ctx.fillStyle = cloud;
     ctx.fillRect(0, 0, this.width, this.height);
 
+    const planetX = this.width * 0.87 + Math.sin(this.time * 0.06) * 14;
+    const planetY = this.height * 0.88;
+    const planetRadius = Math.max(85, this.height * 0.22);
+    const planet = ctx.createRadialGradient(planetX - planetRadius * 0.3, planetY - planetRadius * 0.35, 4, planetX, planetY, planetRadius);
+    planet.addColorStop(0, 'rgba(117, 110, 195, .42)');
+    planet.addColorStop(.55, 'rgba(37, 40, 105, .35)');
+    planet.addColorStop(1, 'rgba(8, 9, 31, 0)');
+    ctx.fillStyle = planet;
+    ctx.beginPath(); ctx.arc(planetX, planetY, planetRadius, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.translate(planetX, planetY); ctx.rotate(-.18); ctx.strokeStyle = 'rgba(147, 123, 255, .16)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.ellipse(0, 0, planetRadius * 1.45, planetRadius * .28, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+
     this._renderLayer(ctx, this.far);
     this._renderLayer(ctx, this.near);
   }
 
   _renderLayer(ctx, stars) {
     for (const star of stars) {
-      ctx.globalAlpha = star.a;
+      ctx.globalAlpha = star.a * (0.72 + Math.sin(this.time * 2.2 + star.twinkle) * 0.28);
       ctx.fillStyle = star.tint;
       ctx.beginPath();
       ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);

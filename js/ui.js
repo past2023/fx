@@ -1,4 +1,4 @@
-import { COLORS, ECONOMY, GAME, SHIPS, WEAPONS } from './constants.js';
+import { COLORS, ECONOMY, GAME, SHIPS, SHIP_UPGRADES, WEAPONS } from './constants.js';
 
 const text = (ctx, value, x, y, size, color = COLORS.ink, align = 'left') => {
   ctx.font = `700 ${size}px "Trebuchet MS", "Segoe UI", sans-serif`;
@@ -18,7 +18,7 @@ export default class UI {
   update(dt) { this.time += dt; }
 
   /** Renders the ship/weapon selection menu. */
-  renderMenu(ctx, width, height, shipIndex, weaponIndex, focus, hangar = { coins: 0, shipLevels: {} }) {
+  renderMenu(ctx, width, height, shipIndex, weaponIndex, focus, hangar = { coins: 0, shipUpgrades: {} }) {
     this._backplate(ctx, width, height);
     const pulse = 0.7 + Math.sin(this.time * 3.2) * 0.3;
     text(ctx, 'STARFALL', width / 2, 67, 38, COLORS.cyan, 'center');
@@ -35,10 +35,10 @@ export default class UI {
       text(ctx, ship.name, x + shipCardW / 2, 258, 16, ship.accent, 'center');
       text(ctx, `${ship.speed} SPD  ·  ${ship.hp} HP`, x + shipCardW / 2, 282, 12, COLORS.ink, 'center');
       text(ctx, `${ship.cooldown.toFixed(2)}s FIRE`, x + shipCardW / 2, 302, 11, COLORS.muted, 'center');
-      const level = hangar.shipLevels?.[ship.id] || 0;
-      const cost = ECONOMY.SHIP_UPGRADE_BASE_COST + level * ECONOMY.SHIP_UPGRADE_COST_STEP;
-      text(ctx, level >= ECONOMY.MAX_SHIP_LEVEL ? `MK ${level} · MAXED` : `MK ${level} · UPGRADE [U] ${cost} ✦`, x + shipCardW / 2, 320, 9, index === shipIndex ? COLORS.warning : COLORS.muted, 'center');
-      if (index === shipIndex) text(ctx, 'U: +10% HULL · +3.5% SPD · +5.5% FIRE', x + shipCardW / 2, 337, 8, ship.accent, 'center');
+      const modules = hangar.shipUpgrades?.[ship.id] || {};
+      const level = SHIP_UPGRADES.reduce((total, module) => total + (modules[module.id] || 0), 0);
+      text(ctx, `MK ${level.toString().padStart(2, '0')} · ${level >= SHIP_UPGRADES.length * ECONOMY.MAX_MODULE_LEVEL ? 'MAXED' : 'FIELD FORGE [U]'}`, x + shipCardW / 2, 320, 9, index === shipIndex ? COLORS.warning : COLORS.muted, 'center');
+      if (index === shipIndex) text(ctx, 'UPGRADE HULL · THRUST · FIRE CONTROL', x + shipCardW / 2, 337, 8, ship.accent, 'center');
     });
 
     text(ctx, 'SELECT WEAPON', width / 2, 391, 21, focus === 1 ? COLORS.warning : COLORS.ink, 'center');
@@ -54,7 +54,7 @@ export default class UI {
       if (index === weaponIndex) text(ctx, 'ARMED', x + weaponCardW / 2, 529, 10, COLORS.warning, 'center');
     });
 
-    text(ctx, '← → CHANGE   ·   ↑ ↓ SWITCH PANEL   ·   [U] SPEND SALVAGE ON SELECTED HULL', width / 2, height - 78, 12, COLORS.muted, 'center');
+    text(ctx, '← → CHANGE   ·   ↑ ↓ SWITCH PANEL   ·   [U] OPEN FIELD FORGE', width / 2, height - 78, 12, COLORS.muted, 'center');
     text(ctx, 'PRESS ENTER OR SPACE TO LAUNCH · Q / E SWITCH ALL 5 WEAPON STYLES IN FLIGHT', width / 2, height - 42, 16, `rgba(234,246,255,${pulse})`, 'center');
   }
 
@@ -113,7 +113,7 @@ export default class UI {
 
     const right = width - 24;
     text(ctx, weapon.name, right, 28, 15, weapon.weapon.color, 'right');
-    text(ctx, 'WEAPON SYSTEM · [Q/E] CYCLE', right, 47, 9, COLORS.muted, 'right');
+    text(ctx, 'WEAPON SYSTEM · [Q/E] CYCLE · [U] FORGE', right, 47, 9, COLORS.muted, 'right');
     if (weapon.weapon.id === 'laser') {
       this._bar(ctx, width - 178, 57, 154, 10, 1 - player.heat / 100, player.laserLockout > 0 ? COLORS.danger : weapon.weapon.color, player.laserLockout > 0 ? 'OVERHEAT' : 'HEAT');
     }
@@ -136,6 +136,97 @@ export default class UI {
     text(ctx, `${Math.ceil(boss.hp)} / ${boss.maxHp}`, width / 2, 139, 10, COLORS.ink, 'center');
     if (!boss.entered) text(ctx, 'APPROACHING · SHIELDS ACTIVE', width / 2, 157, 10, COLORS.cyan, 'center');
     else text(ctx, `PHASE ${boss.phase} // ${boss.phase === 1 ? 'TRACKING' : boss.phase === 2 ? 'BEAM ARRAY' : 'BERSERK'}`, width / 2, 157, 10, COLORS.warning, 'center');
+  }
+
+  /** Adds a subtle cockpit overlay, scanlines and sci-fi corner brackets to every screen. */
+  renderFrame(ctx, width, height, state) {
+    ctx.save();
+    ctx.globalAlpha = state === 'MENU' ? 0.16 : 0.11;
+    ctx.fillStyle = '#b9e8ff';
+    for (let y = 3; y < height; y += 4) ctx.fillRect(0, y, width, 1);
+    ctx.globalAlpha = 0.42;
+    ctx.strokeStyle = 'rgba(105, 214, 255, .58)'; ctx.lineWidth = 1;
+    const inset = 12; const arm = 24;
+    const corners = [[inset, inset, 1, 1], [width - inset, inset, -1, 1], [inset, height - inset, 1, -1], [width - inset, height - inset, -1, -1]];
+    for (const [x, y, sx, sy] of corners) {
+      ctx.beginPath(); ctx.moveTo(x, y + arm * sy); ctx.lineTo(x, y); ctx.lineTo(x + arm * sx, y); ctx.stroke();
+    }
+    const vignette = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * .25, width / 2, height / 2, Math.max(width, height) * .72);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)'); vignette.addColorStop(1, 'rgba(0,2,12,.33)');
+    ctx.globalAlpha = 1; ctx.fillStyle = vignette; ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  /** Renders the pause-safe Field Forge upgrade window for hangar or mid-combat use. */
+  renderUpgradeWindow(ctx, width, height, game) {
+    const ship = game.player?.ship || SHIPS[game.selectedShip];
+    const upgrades = game._shipUpgrades(ship.id);
+    const panelWidth = Math.min(980, width - 72);
+    const panelHeight = Math.min(490, height - 54);
+    const x = (width - panelWidth) / 2;
+    const y = (height - panelHeight) / 2;
+    const selected = game.upgradeSelection;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(1, 4, 15, .76)'; ctx.fillRect(0, 0, width, height);
+    const panel = ctx.createLinearGradient(x, y, x + panelWidth, y + panelHeight);
+    panel.addColorStop(0, 'rgba(13, 30, 66, .98)'); panel.addColorStop(.55, 'rgba(8, 16, 40, .98)'); panel.addColorStop(1, 'rgba(23, 10, 49, .98)');
+    ctx.fillStyle = panel; ctx.fillRect(x, y, panelWidth, panelHeight);
+    ctx.strokeStyle = '#5bd8ff'; ctx.lineWidth = 2; ctx.shadowColor = '#54dfff'; ctx.shadowBlur = 18; ctx.strokeRect(x, y, panelWidth, panelHeight);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(86, 225, 255, .12)'; ctx.fillRect(x, y, panelWidth, 58);
+    text(ctx, 'FIELD FORGE', x + 28, y + 27, 25, COLORS.cyan, 'left');
+    text(ctx, game.state === 'MENU' ? 'HANGAR MODIFICATION BAY' : 'COMBAT CLOCK PAUSED · LIVE INSTALLATION READY', x + 28, y + 48, 10, COLORS.muted, 'left');
+    text(ctx, `SALVAGE  ✦ ${String(game.hangar.coins).padStart(3, '0')}`, x + panelWidth - 28, y + 28, 16, COLORS.coin, 'right');
+
+    const hullX = x + 28;
+    this._shipIcon(ctx, hullX + 76, y + 130, ship);
+    text(ctx, ship.name, hullX + 76, y + 178, 18, ship.accent, 'center');
+    text(ctx, 'ACTIVE HULL', hullX + 76, y + 202, 10, COLORS.muted, 'center');
+    text(ctx, `${game.player?.maxHp || ship.hp} HULL`, hullX + 76, y + 231, 13, COLORS.health, 'center');
+    text(ctx, `${game.player?.speed || ship.speed} THRUST`, hullX + 76, y + 252, 12, COLORS.cyan, 'center');
+    text(ctx, `MK ${SHIP_UPGRADES.reduce((total, module) => total + (upgrades[module.id] || 0), 0).toString().padStart(2, '0')}`, hullX + 76, y + 281, 15, COLORS.warning, 'center');
+    ctx.strokeStyle = 'rgba(143, 192, 255, .35)'; ctx.strokeRect(hullX, y + 78, 152, panelHeight - 145);
+
+    const cardsX = hullX + 177;
+    const gap = 12;
+    const cardsWidth = panelWidth - 205;
+    const cardWidth = (cardsWidth - gap * 2) / 3;
+    SHIP_UPGRADES.forEach((module, index) => {
+      const cardX = cardsX + index * (cardWidth + gap);
+      const active = index === selected;
+      const level = upgrades[module.id] || 0;
+      const maxed = level >= ECONOMY.MAX_MODULE_LEVEL;
+      const cost = game._upgradeCost(ship.id, module.id);
+      ctx.save();
+      ctx.fillStyle = active ? 'rgba(29, 65, 108, .9)' : 'rgba(8, 18, 44, .78)';
+      ctx.strokeStyle = active ? module.color : 'rgba(121, 167, 229, .34)';
+      ctx.lineWidth = active ? 2 : 1;
+      if (active) { ctx.shadowColor = module.color; ctx.shadowBlur = 15; }
+      ctx.fillRect(cardX, y + 78, cardWidth, panelHeight - 145); ctx.strokeRect(cardX, y + 78, cardWidth, panelHeight - 145);
+      ctx.shadowBlur = 0;
+      text(ctx, module.icon, cardX + cardWidth / 2, y + 121, 28, module.color, 'center');
+      text(ctx, module.name, cardX + cardWidth / 2, y + 153, 13, module.color, 'center');
+      text(ctx, module.label, cardX + cardWidth / 2, y + 177, 10, COLORS.ink, 'center');
+      text(ctx, `LEVEL ${level} / ${ECONOMY.MAX_MODULE_LEVEL}`, cardX + cardWidth / 2, y + 209, 13, COLORS.muted, 'center');
+      for (let pip = 0; pip < ECONOMY.MAX_MODULE_LEVEL; pip += 1) {
+        ctx.fillStyle = pip < level ? module.color : 'rgba(164, 192, 232, .18)';
+        ctx.fillRect(cardX + cardWidth / 2 - 31 + pip * 17, y + 225, 12, 5);
+      }
+      if (maxed) text(ctx, 'MAXIMUM OUTPUT', cardX + cardWidth / 2, y + 268, 11, COLORS.health, 'center');
+      else {
+        text(ctx, `${cost} ✦`, cardX + cardWidth / 2, y + 263, 20, game.hangar.coins >= cost ? COLORS.coin : COLORS.danger, 'center');
+        text(ctx, game.hangar.coins >= cost ? 'READY TO INSTALL' : 'INSUFFICIENT SALVAGE', cardX + cardWidth / 2, y + 286, 9, game.hangar.coins >= cost ? COLORS.health : COLORS.danger, 'center');
+      }
+      if (active) text(ctx, 'SELECTED', cardX + cardWidth / 2, y + panelHeight - 91, 10, COLORS.warning, 'center');
+      ctx.restore();
+    });
+
+    ctx.fillStyle = 'rgba(3, 8, 24, .82)'; ctx.fillRect(x, y + panelHeight - 53, panelWidth, 53);
+    text(ctx, '← → SELECT MODULE', x + 24, y + panelHeight - 26, 11, COLORS.muted, 'left');
+    text(ctx, 'ENTER / SPACE INSTALL', x + panelWidth / 2, y + panelHeight - 26, 12, COLORS.ink, 'center');
+    text(ctx, 'U / ESC CLOSE FORGE', x + panelWidth - 24, y + panelHeight - 26, 11, COLORS.muted, 'right');
+    ctx.restore();
   }
 
   _bar(ctx, x, y, width, height, ratio, color, label = '') {
