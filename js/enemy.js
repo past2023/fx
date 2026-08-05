@@ -1,4 +1,4 @@
-import { ENEMY_TYPES, GAME, TUNING } from './constants.js';
+import { COLORS, ENEMY_TYPES, GAME, TUNING } from './constants.js';
 import { Pool } from './bullet.js';
 
 class Enemy {
@@ -29,7 +29,7 @@ class Enemy {
     return this;
   }
 
-  update(dt, width, height) {
+  update(dt, width, height, player = null) {
     if (!this.active) return;
     this.age += dt;
     this.x -= this.type.speed * dt;
@@ -87,10 +87,71 @@ class Enemy {
   }
 }
 
+class Coin {
+  constructor() {
+    this.active = false;
+    this.x = this.y = 0;
+    this.vx = this.vy = 0;
+    this.age = 0;
+    this.value = TUNING.COIN.VALUE;
+    this.phase = 0;
+  }
+
+  reset(x, y, value = TUNING.COIN.VALUE) {
+    this.active = true;
+    this.x = x; this.y = y;
+    this.vx = -TUNING.COIN.DRIFT_SPEED * (0.45 + Math.random() * 0.75);
+    this.vy = (Math.random() - 0.5) * 120;
+    this.age = 0;
+    this.value = value;
+    this.phase = Math.random() * Math.PI * 2;
+    return this;
+  }
+
+  update(dt, width, height, player) {
+    if (!this.active) return;
+    this.age += dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.vx *= 1 - Math.min(0.9, 1.4 * dt);
+    this.vy *= 1 - Math.min(0.9, 1.4 * dt);
+    this.y += Math.sin(this.age * 7 + this.phase) * 14 * dt;
+    if (player?.alive) {
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < TUNING.COIN.MAGNET_RANGE && distance > 0.01) {
+        const pull = (1 - distance / TUNING.COIN.MAGNET_RANGE) * TUNING.COIN.MAGNET_ACCELERATION;
+        this.x += dx * pull * dt;
+        this.y += dy * pull * dt;
+      }
+    }
+    if (this.x < -35 || this.y < -35 || this.y > height + 35 || this.x > width + 35) this.active = false;
+  }
+
+  getBounds() { return { x: this.x - 10, y: this.y - 10, w: 20, h: 20 }; }
+
+  render(ctx) {
+    const spin = Math.max(0.28, Math.abs(Math.cos(this.age * 7 + this.phase)));
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.scale(spin, 1);
+    ctx.shadowColor = COLORS.coin; ctx.shadowBlur = 15;
+    const face = ctx.createRadialGradient(-3, -4, 1, 0, 0, 10);
+    face.addColorStop(0, '#fff6b0'); face.addColorStop(0.42, COLORS.coin); face.addColorStop(1, '#d48519');
+    ctx.fillStyle = face;
+    ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.strokeStyle = '#fff4ae'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fff5ad'; ctx.font = '700 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✦', 0, .5);
+    ctx.restore();
+  }
+}
+
 class PowerUp {
   constructor() { this.active = false; this.x = this.y = 0; this.kind = 'health'; this.age = 0; }
   reset(x, y, kind) { this.active = true; this.x = x; this.y = y; this.kind = kind; this.age = 0; return this; }
-  update(dt, width, height) {
+  update(dt, width, height, player = null) {
     if (!this.active) return;
     this.age += dt;
     this.x -= TUNING.POWERUP.DRIFT_SPEED * dt;
@@ -121,6 +182,7 @@ export default class EnemyManager {
   constructor() {
     this.pool = new Pool(() => new Enemy(), GAME.MAX_ENEMIES);
     this.powerupPool = new Pool(() => new PowerUp(), 20);
+    this.coinPool = new Pool(() => new Coin(), GAME.MAX_COINS);
     this.schedule = [];
     this.waveNumber = 0;
   }
@@ -129,6 +191,7 @@ export default class EnemyManager {
   clear() {
     this.pool.clear();
     this.powerupPool.clear();
+    this.coinPool.clear();
     this.schedule.length = 0;
     this.waveNumber = 0;
   }
@@ -174,7 +237,7 @@ export default class EnemyManager {
   }
 
   /** Advances delayed spawns, enemies and collectible drops. */
-  update(dt, width, height) {
+  update(dt, width, height, player = null) {
     for (let index = this.schedule.length - 1; index >= 0; index -= 1) {
       const request = this.schedule[index];
       request.delay -= dt;
@@ -185,12 +248,14 @@ export default class EnemyManager {
     }
     for (const enemy of this.pool.items) enemy.update(dt, width, height);
     for (const powerup of this.powerupPool.items) powerup.update(dt, width, height);
+    for (const coin of this.coinPool.items) coin.update(dt, width, height, player);
   }
 
   /** Deactivates a defeated enemy and potentially creates a collectible drop. */
   destroy(enemy, forceHealth = false) {
     if (!enemy?.active) return null;
     enemy.active = false;
+    this.dropCoins(enemy.x, enemy.y, enemy.type.coins);
     if (forceHealth || Math.random() < GAME.POWERUP_CHANCE) {
       const type = forceHealth || Math.random() < 0.5 ? 'health' : 'upgrade';
       this.dropPowerup(enemy.x, enemy.y, type);
@@ -204,6 +269,15 @@ export default class EnemyManager {
     return powerup?.reset(x, y, kind) || null;
   }
 
+  /** Creates the authored amount of magnetized salvage currency for a defeated foe. */
+  dropCoins(x, y, count = 1) {
+    for (let index = 0; index < count; index += 1) {
+      const coin = this.coinPool.get();
+      if (!coin) return;
+      coin.reset(x + (Math.random() - 0.5) * 18, y + (Math.random() - 0.5) * 18);
+    }
+  }
+
   /** Whether all wave enemy slots and delayed spawn slots have drained. */
   isClear() {
     return this.schedule.length === 0 && !this.pool.items.some((enemy) => enemy.active);
@@ -213,5 +287,6 @@ export default class EnemyManager {
   render(ctx, assets) {
     for (const enemy of this.pool.items) if (enemy.active) enemy.render(ctx, assets);
     for (const powerup of this.powerupPool.items) if (powerup.active) powerup.render(ctx);
+    for (const coin of this.coinPool.items) if (coin.active) coin.render(ctx);
   }
 }

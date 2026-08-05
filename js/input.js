@@ -11,7 +11,9 @@ export default class InputManager {
       ['ArrowRight', ['right']], ['KeyD', ['right']],
       ['ArrowUp', ['up']], ['KeyW', ['up']],
       ['ArrowDown', ['down']], ['KeyS', ['down']],
-      ['Space', ['shoot', 'start']], ['Enter', ['start']], ['Escape', ['pause']],
+      ['Space', ['shoot', 'start']], ['Enter', ['start']],
+      ['KeyQ', ['previousWeapon']], ['KeyE', ['nextWeapon']], ['KeyU', ['upgrade']],
+      ['Escape', ['pause']],
     ]);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);

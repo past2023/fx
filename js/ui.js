@@ -1,4 +1,4 @@
-import { COLORS, GAME, SHIPS, WEAPONS } from './constants.js';
+import { COLORS, ECONOMY, GAME, SHIPS, WEAPONS } from './constants.js';
 
 const text = (ctx, value, x, y, size, color = COLORS.ink, align = 'left') => {
   ctx.font = `700 ${size}px "Trebuchet MS", "Segoe UI", sans-serif`;
@@ -18,40 +18,44 @@ export default class UI {
   update(dt) { this.time += dt; }
 
   /** Renders the ship/weapon selection menu. */
-  renderMenu(ctx, width, height, shipIndex, weaponIndex, focus) {
+  renderMenu(ctx, width, height, shipIndex, weaponIndex, focus, hangar = { coins: 0, shipLevels: {} }) {
     this._backplate(ctx, width, height);
     const pulse = 0.7 + Math.sin(this.time * 3.2) * 0.3;
     text(ctx, 'STARFALL', width / 2, 67, 38, COLORS.cyan, 'center');
     text(ctx, 'LEVEL 1 · BREACH THE OUTER RIM', width / 2, 103, 13, COLORS.muted, 'center');
+    text(ctx, `SALVAGE  ✦ ${String(hangar.coins || 0).padStart(3, '0')}`, width - 28, 67, 13, COLORS.coin, 'right');
     text(ctx, 'SELECT YOUR SHIP', width / 2, 153, 21, focus === 0 ? COLORS.warning : COLORS.ink, 'center');
 
     const shipCardW = Math.min(240, (width - 110) / 3);
     const shipStart = width / 2 - shipCardW * 1.5 - 10;
     SHIPS.forEach((ship, index) => {
       const x = shipStart + index * (shipCardW + 10);
-      this._selectionCard(ctx, x, 180, shipCardW, 155, index === shipIndex, focus === 0, ship.color);
+      this._selectionCard(ctx, x, 180, shipCardW, 164, index === shipIndex, focus === 0, ship.color);
       this._shipIcon(ctx, x + shipCardW / 2, 218, ship);
       text(ctx, ship.name, x + shipCardW / 2, 258, 16, ship.accent, 'center');
       text(ctx, `${ship.speed} SPD  ·  ${ship.hp} HP`, x + shipCardW / 2, 282, 12, COLORS.ink, 'center');
-      text(ctx, `${ship.cooldown.toFixed(2)}s FIRE`, x + shipCardW / 2, 304, 11, COLORS.muted, 'center');
-      if (index === shipIndex) text(ctx, 'SELECTED', x + shipCardW / 2, 326, 10, COLORS.warning, 'center');
+      text(ctx, `${ship.cooldown.toFixed(2)}s FIRE`, x + shipCardW / 2, 302, 11, COLORS.muted, 'center');
+      const level = hangar.shipLevels?.[ship.id] || 0;
+      const cost = ECONOMY.SHIP_UPGRADE_BASE_COST + level * ECONOMY.SHIP_UPGRADE_COST_STEP;
+      text(ctx, level >= ECONOMY.MAX_SHIP_LEVEL ? `MK ${level} · MAXED` : `MK ${level} · UPGRADE [U] ${cost} ✦`, x + shipCardW / 2, 320, 9, index === shipIndex ? COLORS.warning : COLORS.muted, 'center');
+      if (index === shipIndex) text(ctx, 'U: +10% HULL · +3.5% SPD · +5.5% FIRE', x + shipCardW / 2, 337, 8, ship.accent, 'center');
     });
 
-    text(ctx, 'SELECT WEAPON', width / 2, 384, 21, focus === 1 ? COLORS.warning : COLORS.ink, 'center');
+    text(ctx, 'SELECT WEAPON', width / 2, 391, 21, focus === 1 ? COLORS.warning : COLORS.ink, 'center');
     const weaponCardW = Math.min(240, (width - 110) / 3);
     const weaponStart = width / 2 - weaponCardW * 1.5 - 10;
     WEAPONS.forEach((weapon, index) => {
       const x = weaponStart + index * (weaponCardW + 10);
-      this._selectionCard(ctx, x, 411, weaponCardW, 132, index === weaponIndex, focus === 1, weapon.color);
-      this._weaponIcon(ctx, x + 31, 447, weapon);
-      text(ctx, weapon.name, x + 56, 438, 16, weapon.color, 'left');
-      text(ctx, weapon.description, x + 56, 464, 10, COLORS.ink, 'left');
-      if (weapon.id === 'laser') text(ctx, 'OVERHEATS AFTER SUSTAINED USE', x + 56, 486, 9, COLORS.muted, 'left');
-      if (index === weaponIndex) text(ctx, 'ARMED', x + weaponCardW / 2, 522, 10, COLORS.warning, 'center');
+      this._selectionCard(ctx, x, 418, weaponCardW, 132, index === weaponIndex, focus === 1, weapon.color);
+      this._weaponIcon(ctx, x + 31, 454, weapon);
+      text(ctx, weapon.name, x + 56, 445, 16, weapon.color, 'left');
+      text(ctx, weapon.description, x + 56, 471, 10, COLORS.ink, 'left');
+      if (weapon.id === 'laser') text(ctx, 'OVERHEATS AFTER SUSTAINED USE', x + 56, 493, 9, COLORS.muted, 'left');
+      if (index === weaponIndex) text(ctx, 'ARMED', x + weaponCardW / 2, 529, 10, COLORS.warning, 'center');
     });
 
-    text(ctx, '← → CHANGE   ·   ↑ ↓ SWITCH PANEL', width / 2, height - 78, 12, COLORS.muted, 'center');
-    text(ctx, 'PRESS ENTER OR SPACE TO LAUNCH', width / 2, height - 42, 16, `rgba(234,246,255,${pulse})`, 'center');
+    text(ctx, '← → CHANGE   ·   ↑ ↓ SWITCH PANEL   ·   [U] SPEND SALVAGE ON SELECTED HULL', width / 2, height - 78, 12, COLORS.muted, 'center');
+    text(ctx, 'PRESS ENTER OR SPACE TO LAUNCH · Q / E SWITCH ALL 5 WEAPON STYLES IN FLIGHT', width / 2, height - 42, 16, `rgba(234,246,255,${pulse})`, 'center');
   }
 
   _backplate(ctx, width, height) {
@@ -97,6 +101,8 @@ export default class UI {
     const hpRatio = player.hp / player.maxHp;
     this._bar(ctx, 22, 27, 235, 17, hpRatio, hpRatio > 0.34 ? COLORS.health : COLORS.danger, 'HP');
     text(ctx, `${Math.ceil(player.hp)} / ${player.maxHp}`, 267, 36, 11, COLORS.ink, 'left');
+    text(ctx, `SALVAGE  ✦ ${String(game.hangar.coins).padStart(3, '0')}`, 22, 66, 12, COLORS.coin, 'left');
+    if (game.runCoins > 0) text(ctx, `+${game.runCoins} THIS RUN`, 22, 82, 9, '#fff1a6', 'left');
 
     text(ctx, 'SCORE', width / 2, 26, 10, COLORS.muted, 'center');
     text(ctx, String(score).padStart(6, '0'), width / 2, 45, 22, COLORS.ink, 'center');
@@ -107,7 +113,7 @@ export default class UI {
 
     const right = width - 24;
     text(ctx, weapon.name, right, 28, 15, weapon.weapon.color, 'right');
-    text(ctx, 'WEAPON SYSTEM', right, 47, 9, COLORS.muted, 'right');
+    text(ctx, 'WEAPON SYSTEM · [Q/E] CYCLE', right, 47, 9, COLORS.muted, 'right');
     if (weapon.weapon.id === 'laser') {
       this._bar(ctx, width - 178, 57, 154, 10, 1 - player.heat / 100, player.laserLockout > 0 ? COLORS.danger : weapon.weapon.color, player.laserLockout > 0 ? 'OVERHEAT' : 'HEAT');
     }

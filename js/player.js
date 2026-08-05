@@ -1,11 +1,11 @@
-import { GAME, TUNING } from './constants.js';
+import { ECONOMY, GAME, TUNING } from './constants.js';
 
 /**
  * Player ship state, movement, survivability and procedural fallback drawing.
  */
 export default class Player {
-  constructor(ship) {
-    this.configure(ship);
+  constructor(ship, upgradeLevel = 0) {
+    this.configure(ship, upgradeLevel);
     this.x = 160;
     this.y = 360;
     this.w = 42;
@@ -20,11 +20,13 @@ export default class Player {
   }
 
   /** Applies a selected hull to a fresh player ship. */
-  configure(ship) {
+  configure(ship, upgradeLevel = 0) {
     this.ship = ship;
-    this.maxHp = ship.hp;
-    this.hp = ship.hp;
-    this.speed = ship.speed;
+    this.upgradeLevel = upgradeLevel;
+    this.maxHp = Math.round(ship.hp * (1 + ECONOMY.HP_PER_LEVEL * upgradeLevel));
+    this.hp = this.maxHp;
+    this.speed = Math.round(ship.speed * (1 + ECONOMY.SPEED_PER_LEVEL * upgradeLevel));
+    this.cooldownMultiplier = Math.max(0.65, 1 - ECONOMY.COOLDOWN_REDUCTION_PER_LEVEL * upgradeLevel);
   }
 
   /** Places the player safely in the playable field. */

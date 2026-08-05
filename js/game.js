@@ -1,4 +1,4 @@
-import { GAME, SHIPS, STATES, TUNING, WEAPONS } from './constants.js';
+import { ECONOMY, GAME, SHIPS, STATES, TUNING, WEAPONS } from './constants.js';
 import AudioManager from './assetLoader.js';
 import InputManager from './input.js';
 import Background from './background.js';
@@ -31,6 +31,8 @@ export default class Game {
     this.particles = new ParticleSystem();
     this.boss = new Boss();
     this.ui = new UI();
+    this.hangar = this._loadHangar();
+    this.runCoins = 0;
     this.player = null;
     this.weapon = null;
     this.state = STATES.MENU;
@@ -129,6 +131,7 @@ export default class Game {
       else this.selectedWeapon = (this.selectedWeapon + horizontal + WEAPONS.length) % WEAPONS.length;
       this.audio.playSound('menuMove');
     }
+    if (this.input.wasPressed('upgrade')) this._tryUpgradeSelectedShip();
     if (this.input.wasPressed('start')) this._beginRun();
   }
 
@@ -137,10 +140,12 @@ export default class Game {
     this.distance = 0;
     this.nextWave = 0;
     this.bossDeathTimer = null;
+    this.runCoins = 0;
     this.bullets.clear();
     this.enemies.clear();
     this.particles.clear();
-    this.player = new Player(SHIPS[this.selectedShip]);
+    const selectedShip = SHIPS[this.selectedShip];
+    this.player = new Player(selectedShip, this._shipLevel(selectedShip.id));
     this.player.place(this.width, this.height);
     this.weapon = new WeaponSystem(WEAPONS[this.selectedWeapon]);
     this.boss.reset(this.width, this.height);
@@ -185,8 +190,9 @@ export default class Game {
     }
 
     this.player.update(dt, this.input, this.width, this.height, this.particles);
-    this.weapon.update(dt, this.player, this.input, this.bullets, this.width);
-    this.enemies.update(dt, this.width, this.height);
+    this._handleWeaponSwitching();
+    this.weapon.update(dt, this.player, this.input, this.bullets, this.width, this.particles);
+    this.enemies.update(dt, this.width, this.height, this.player);
     const bossEvent = this.boss.update(dt, this.player, this.bullets, this.enemies, this.width, this.height);
     if (bossEvent.entered) {
       this._shake(0.45, 11);
@@ -207,8 +213,9 @@ export default class Game {
 
   _updateCombatWorld(dt) {
     this.player.update(dt, this.input, this.width, this.height, this.particles);
-    this.weapon.update(dt, this.player, this.input, this.bullets, this.width);
-    this.enemies.update(dt, this.width, this.height);
+    this._handleWeaponSwitching();
+    this.weapon.update(dt, this.player, this.input, this.bullets, this.width, this.particles);
+    this.enemies.update(dt, this.width, this.height, this.player);
     this.bullets.update(dt, this.width, this.height);
     this.particles.update(dt);
     this._resolveEnemyInteractions();
@@ -222,8 +229,13 @@ export default class Game {
       if (bullet.team === 'player') {
         for (const enemy of this.enemies.pool.items) {
           if (!enemy.active || !overlaps(bullet.getBounds(), enemy.getBounds())) continue;
+          if (bullet.splashRadius > 0) {
+            this._detonateNova(bullet);
+            this.bullets.release(bullet);
+            break;
+          }
           enemy.hp -= bullet.damage;
-          this.particles.sparks(bullet.x, bullet.y, bullet.color, bullet.type === 'laser' ? 2 : 5);
+          this.particles.sparks(bullet.x, bullet.y, bullet.color, bullet.type === 'laser' ? 2 : 6);
           if (enemy.hp <= 0) this._destroyEnemy(enemy);
           if (bullet.type !== 'laser') { this.bullets.release(bullet); break; }
         }
@@ -253,6 +265,14 @@ export default class Game {
       this.particles.explosion(powerup.x, powerup.y, powerup.kind === 'health' ? '#62f094' : '#a577ff', 12, 0.55);
       this.audio.playSound('powerup');
     }
+
+    for (const coin of this.enemies.coinPool.items) {
+      if (!coin.active || !overlaps(coin.getBounds(), playerBounds)) continue;
+      coin.active = false;
+      this._awardCoins(coin.value, true);
+      this.particles.coinCollect(coin.x, coin.y);
+      this.audio.playSound('coin');
+    }
   }
 
   _resolveBossInteractions(dt) {
@@ -273,6 +293,84 @@ export default class Game {
     }
   }
 
+  _handleWeaponSwitching() {
+    const direction = (this.input.wasPressed('nextWeapon') ? 1 : 0) - (this.input.wasPressed('previousWeapon') ? 1 : 0);
+    if (!direction) return;
+    const selected = this.weapon.cycle(direction);
+    this.player.heat = 0;
+    this.player.laserLockout = 0;
+    this.audio.playSound('weaponSwitch');
+    console.info(`[game] Weapon armed -> ${selected.name}`);
+  }
+
+  _detonateNova(bullet) {
+    const radius = bullet.splashRadius;
+    for (const enemy of this.enemies.pool.items) {
+      if (!enemy.active) continue;
+      const distance = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
+      if (distance > radius + Math.max(enemy.type.w, enemy.type.h) / 2) continue;
+      const falloff = Math.max(0.35, 1 - distance / radius);
+      enemy.hp -= bullet.damage * falloff;
+      if (enemy.hp <= 0) this._destroyEnemy(enemy);
+    }
+    this.particles.explosion(bullet.x, bullet.y, bullet.color, 20, 0.7);
+    this._shake(0.12, 4);
+    this.audio.playSound('novaImpact');
+  }
+
+  _loadHangar() {
+    const fallback = { coins: 0, shipLevels: Object.fromEntries(SHIPS.map((ship) => [ship.id, 0])) };
+    try {
+      const saved = JSON.parse(localStorage.getItem(ECONOMY.STORAGE_KEY) || 'null');
+      if (!saved || typeof saved !== 'object') return fallback;
+      for (const ship of SHIPS) {
+        fallback.shipLevels[ship.id] = Math.max(0, Math.min(ECONOMY.MAX_SHIP_LEVEL, Number(saved.shipLevels?.[ship.id]) || 0));
+      }
+      fallback.coins = Math.max(0, Math.floor(Number(saved.coins) || 0));
+    } catch (error) {
+      console.warn('[game] Hangar save is unavailable; using a temporary wallet.', error);
+    }
+    return fallback;
+  }
+
+  _saveHangar() {
+    try { localStorage.setItem(ECONOMY.STORAGE_KEY, JSON.stringify(this.hangar)); }
+    catch (error) { console.warn('[game] Could not save hangar progress.', error); }
+  }
+
+  _shipLevel(shipId) { return this.hangar.shipLevels[shipId] || 0; }
+
+  _upgradeCost(shipId) {
+    return ECONOMY.SHIP_UPGRADE_BASE_COST + this._shipLevel(shipId) * ECONOMY.SHIP_UPGRADE_COST_STEP;
+  }
+
+  _tryUpgradeSelectedShip() {
+    const ship = SHIPS[this.selectedShip];
+    const level = this._shipLevel(ship.id);
+    if (level >= ECONOMY.MAX_SHIP_LEVEL) {
+      console.info(`[game] ${ship.name} is already at maximum upgrade level.`);
+      return;
+    }
+    const cost = this._upgradeCost(ship.id);
+    if (this.hangar.coins < cost) {
+      console.info(`[game] Upgrade requires ${cost} coins; wallet contains ${this.hangar.coins}.`);
+      this._shake(0.12, 3);
+      return;
+    }
+    this.hangar.coins -= cost;
+    this.hangar.shipLevels[ship.id] = level + 1;
+    this._saveHangar();
+    this.audio.playSound('upgrade');
+    console.info(`[game] ${ship.name} upgraded to MK ${level + 1}.`);
+  }
+
+  _awardCoins(amount, collected) {
+    this.hangar.coins += amount;
+    this.runCoins += amount;
+    this._saveHangar();
+    if (collected) console.info(`[game] +${amount} salvage coin. Wallet: ${this.hangar.coins}.`);
+  }
+
   _destroyEnemy(enemy, forceHealth = false) {
     const destroyed = this.enemies.destroy(enemy, forceHealth || enemy.type.id === 'heavy');
     if (!destroyed) return;
@@ -285,6 +383,7 @@ export default class Game {
   _destroyBoss() {
     if (this.bossDeathTimer !== null) return;
     this.score += 5000;
+    this._awardCoins(ECONOMY.BOSS_COIN_REWARD, false);
     this.bossDeathTimer = GAME.BOSS_DEATH_DELAY;
     this.enemies.clear();
     this.bullets.clear();
@@ -340,7 +439,7 @@ export default class Game {
     }
     ctx.restore();
 
-    if (this.state === STATES.MENU) this.ui.renderMenu(ctx, this.width, this.height, this.selectedShip, this.selectedWeapon, this.menuFocus);
+    if (this.state === STATES.MENU) this.ui.renderMenu(ctx, this.width, this.height, this.selectedShip, this.selectedWeapon, this.menuFocus, this.hangar);
     else if (this.state === STATES.PLAYING) this.ui.renderHUD(ctx, this);
     else if (this.state === STATES.BOSS) {
       this.ui.renderHUD(ctx, this);

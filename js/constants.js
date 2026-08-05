@@ -11,6 +11,7 @@ export const GAME = Object.freeze({
   MAX_ENEMIES: 30,
   MAX_BULLETS: 100,
   MAX_PARTICLES: 300,
+  MAX_COINS: 80,
   PLAYER_INVINCIBILITY: 1.5,
   POWERUP_CHANCE: 0.15,
   POWERUP_DURATION: 8,
@@ -31,17 +32,36 @@ export const SHIPS = Object.freeze([
   { id: 'tank', name: 'TANK', speed: 180, hp: 150, cooldown: 0.25, color: '#54dc78', accent: '#c6ffcf', description: 'ARMORED / STEADY' },
 ]);
 
+/** Starter options shown in the hangar before a run. */
 export const WEAPONS = Object.freeze([
   { id: 'blaster', name: 'BLASTER', damage: 25, cooldownMultiplier: 1, color: '#7edbff', description: '25 DMG · STRAIGHT SHOT' },
   { id: 'spread', name: 'SPREAD', damage: 18, cooldownMultiplier: 1.2, color: '#ffb766', description: '3 × 18 DMG · 15° FAN' },
   { id: 'laser', name: 'LASER', damagePerSecond: 480, heatPerSecond: 42, coolPerSecond: 34, lockout: 1.5, color: '#ff67d8', description: 'CONTINUOUS BEAM · HEAT' },
 ]);
 
+/** Full in-flight armory; Q/E can cycle every combat style at any time. */
+export const WEAPON_LOADOUT = Object.freeze([
+  ...WEAPONS,
+  { id: 'pulse', name: 'PULSE BURST', damage: 16, cooldownMultiplier: 1.32, color: '#79ffb0', description: '3-SHOT VOLLEY · HIGH CADENCE', burstCount: 3, burstDelay: 0.065 },
+  { id: 'nova', name: 'NOVA CANNON', damage: 58, cooldownMultiplier: 2.15, color: '#b78cff', description: 'HEAVY PLASMA · AREA IMPACT', splashRadius: 62 },
+]);
+
 export const ENEMY_TYPES = Object.freeze({
-  scout: { id: 'scout', name: 'SCOUT', hp: 30, speed: 150, points: 100, w: 32, h: 26, color: '#ff4f68' },
-  tank: { id: 'tank', name: 'TANK', hp: 80, speed: 80, points: 200, w: 58, h: 54, color: '#9da7ba' },
-  drone: { id: 'drone', name: 'DRONE', hp: 20, speed: 250, points: 150, w: 28, h: 22, color: '#ffe85e' },
-  heavy: { id: 'heavy', name: 'HEAVY TANK', hp: 200, speed: 60, points: 800, w: 92, h: 80, color: '#8994a8' },
+  scout: { id: 'scout', name: 'SCOUT', hp: 30, speed: 150, points: 100, coins: 2, w: 32, h: 26, color: '#ff4f68' },
+  tank: { id: 'tank', name: 'TANK', hp: 80, speed: 80, points: 200, coins: 4, w: 58, h: 54, color: '#9da7ba' },
+  drone: { id: 'drone', name: 'DRONE', hp: 20, speed: 250, points: 150, coins: 2, w: 28, h: 22, color: '#ffe85e' },
+  heavy: { id: 'heavy', name: 'HEAVY TANK', hp: 200, speed: 60, points: 800, coins: 12, w: 92, h: 80, color: '#8994a8' },
+});
+
+export const ECONOMY = Object.freeze({
+  STORAGE_KEY: 'starfall-hangar-v1',
+  MAX_SHIP_LEVEL: 4,
+  SHIP_UPGRADE_BASE_COST: 20,
+  SHIP_UPGRADE_COST_STEP: 18,
+  HP_PER_LEVEL: 0.1,
+  SPEED_PER_LEVEL: 0.035,
+  COOLDOWN_REDUCTION_PER_LEVEL: 0.055,
+  BOSS_COIN_REWARD: 30,
 });
 
 export const COLORS = Object.freeze({
@@ -51,19 +71,26 @@ export const COLORS = Object.freeze({
   danger: '#ff5269',
   health: '#66ef86',
   warning: '#ffd166',
+  coin: '#ffd34d',
   ink: '#eaf6ff',
   muted: '#8ba0c2',
 });
-
-export default GAME;
 
 /** Runtime movement, cadence and combat tuning not intrinsic to a specific hull/type. */
 export const TUNING = Object.freeze({
   BACKGROUND: Object.freeze({ FAR_STAR_SPEED: 30, NEAR_STAR_SPEED: 80, NEBULA_SPEED: 6 }),
   PLAYER: Object.freeze({ TRAIL_INTERVAL: 0.045 }),
-  WEAPON: Object.freeze({ BLASTER_SPEED: 680, SPREAD_SPEED: 630, PASSIVE_HEAT_COOL: 45 }),
+  WEAPON: Object.freeze({
+    BLASTER_SPEED: 680,
+    SPREAD_SPEED: 630,
+    PULSE_SPEED: 780,
+    NOVA_SPEED: 380,
+    PASSIVE_HEAT_COOL: 45,
+    LASER_FX_INTERVAL: 0.045,
+  }),
   ENEMY: Object.freeze({ SCOUT_SWAY_SPEED: 4.4, SCOUT_SWAY_AMOUNT: 30, DRONE_JITTER_INTERVAL: 0.5, DRONE_Y_SPEED: 170 }),
   POWERUP: Object.freeze({ DRIFT_SPEED: 48 }),
+  COIN: Object.freeze({ DRIFT_SPEED: 64, MAGNET_RANGE: 185, MAGNET_ACCELERATION: 6.5, VALUE: 1 }),
   BOSS: Object.freeze({
     HP: 1500,
     ENTRY_SPEED: 145,
@@ -79,3 +106,5 @@ export const TUNING = Object.freeze({
     LASER_RANGE: 1700,
   }),
 });
+
+export default GAME;
