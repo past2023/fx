@@ -159,6 +159,37 @@ class Coin {
   }
 }
 
+class BombPickup {
+  constructor() { this.active = false; this.x = this.y = 0; this.age = 0; this.phase = 0; }
+  reset(x, y) { this.active = true; this.x = x; this.y = y; this.age = 0; this.phase = Math.random() * Math.PI * 2; return this; }
+  update(dt, width, height, player) {
+    if (!this.active) return;
+    this.age += dt;
+    this.x -= TUNING.BOMB.PICKUP_SPEED * dt;
+    this.y += Math.sin(this.age * 5 + this.phase) * 22 * dt;
+    if (player?.alive) {
+      const dx = player.x - this.x; const dy = player.y - this.y; const distance = Math.hypot(dx, dy);
+      if (distance < TUNING.BOMB.MAGNET_RANGE && distance > .01) {
+        const pull = (1 - distance / TUNING.BOMB.MAGNET_RANGE) * TUNING.BOMB.MAGNET_ACCELERATION;
+        this.x += dx * pull * dt; this.y += dy * pull * dt;
+      }
+    }
+    if (this.x < -34 || this.y < -34 || this.y > height + 34 || this.x > width + 34) this.active = false;
+  }
+  getBounds() { return { x: this.x - 15, y: this.y - 15, w: 30, h: 30 }; }
+  render(ctx) {
+    const pulse = 1 + Math.sin(this.age * 8 + this.phase) * .12;
+    ctx.save(); ctx.translate(this.x, this.y); ctx.scale(pulse, pulse);
+    ctx.shadowColor = '#ff775a'; ctx.shadowBlur = 18;
+    ctx.fillStyle = '#e85245'; ctx.strokeStyle = '#ffe4b2'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff4cb'; ctx.beginPath(); ctx.arc(-3, -3, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd166'; ctx.fillRect(-2, -16, 4, 8);
+    ctx.strokeStyle = '#ffdb6e'; ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(7, -20, 4, -24); ctx.stroke();
+    ctx.restore();
+  }
+}
+
 class PowerUp {
   constructor() { this.active = false; this.x = this.y = 0; this.kind = 'health'; this.age = 0; }
   reset(x, y, kind) { this.active = true; this.x = x; this.y = y; this.kind = kind; this.age = 0; return this; }
@@ -194,6 +225,7 @@ export default class EnemyManager {
     this.pool = new Pool(() => new Enemy(), GAME.MAX_ENEMIES);
     this.powerupPool = new Pool(() => new PowerUp(), 20);
     this.coinPool = new Pool(() => new Coin(), GAME.MAX_COINS);
+    this.bombPool = new Pool(() => new BombPickup(), GAME.MAX_BOMBS);
     this.schedule = [];
     this.waveNumber = 0;
   }
@@ -203,6 +235,7 @@ export default class EnemyManager {
     this.pool.clear();
     this.powerupPool.clear();
     this.coinPool.clear();
+    this.bombPool.clear();
     this.schedule.length = 0;
     this.waveNumber = 0;
   }
@@ -303,6 +336,7 @@ export default class EnemyManager {
     for (const enemy of this.pool.items) enemy.update(dt, width, height);
     for (const powerup of this.powerupPool.items) powerup.update(dt, width, height);
     for (const coin of this.coinPool.items) coin.update(dt, width, height, player);
+    for (const bomb of this.bombPool.items) bomb.update(dt, width, height, player);
   }
 
   /** Deactivates a defeated enemy and potentially creates a collectible drop. */
@@ -310,6 +344,7 @@ export default class EnemyManager {
     if (!enemy?.active) return null;
     enemy.active = false;
     this.dropCoins(enemy.x, enemy.y, enemy.type.coins);
+    if (enemy.type.id === 'heavy' || Math.random() < GAME.BOMB_DROP_CHANCE) this.dropBomb(enemy.x, enemy.y);
     if (forceHealth || Math.random() < GAME.POWERUP_CHANCE) {
       const type = forceHealth || Math.random() < 0.5 ? 'health' : 'upgrade';
       this.dropPowerup(enemy.x, enemy.y, type);
@@ -332,6 +367,12 @@ export default class EnemyManager {
     }
   }
 
+  /** Releases a collectible full-blast charge. Heavy units always carry one. */
+  dropBomb(x, y) {
+    const bomb = this.bombPool.get();
+    return bomb?.reset(x, y) || null;
+  }
+
   /** Whether all wave enemy slots and delayed spawn slots have drained. */
   isClear() {
     return this.schedule.length === 0 && !this.pool.items.some((enemy) => enemy.active);
@@ -342,5 +383,6 @@ export default class EnemyManager {
     for (const enemy of this.pool.items) if (enemy.active) enemy.render(ctx, assets);
     for (const powerup of this.powerupPool.items) if (powerup.active) powerup.render(ctx);
     for (const coin of this.coinPool.items) if (coin.active) coin.render(ctx);
+    for (const bomb of this.bombPool.items) if (bomb.active) bomb.render(ctx);
   }
 }

@@ -122,6 +122,22 @@ export default class ParticleSystem {
     this.sparks(x, y, '#fff2a6', 4);
   }
 
+  /** A fiery pickup flare for a recovered full-blast charge. */
+  bombCollect(x, y) {
+    this._spawn(x, y, 0, 0, .3, 8, '#ff9a5b', { kind: 'ring', grow: 68, drag: 0 });
+    this._spawn(x, y, 0, 0, .16, 15, '#fff2d0', { kind: 'flare', drag: 4 });
+    this.sparks(x, y, '#ffd36d', 8);
+  }
+
+  /** Emits layered screen-scale shockwaves and a fiery core for the emergency Void Bomb. */
+  bombBlast(x, y) {
+    this._spawn(x, y, 0, 0, .55, 16, '#fff0bd', { kind: 'ring', grow: 330, drag: 0 });
+    this._spawn(x, y, 0, 0, .72, 24, '#ff9b5a', { kind: 'ring', grow: 720, drag: 0 });
+    this._spawn(x, y, 0, 0, .92, 34, '#ff5a5f', { kind: 'ring', grow: 1160, drag: 0 });
+    this._spawn(x, y, 0, 0, .3, 38, '#ffffff', { kind: 'flare', drag: 3 });
+    this.explosion(x, y, '#ff825c', 54, 1.65);
+  }
+
   /** Advances all live particles. */
   update(dt) { for (const particle of this.pool.items) particle.update(dt); }
 

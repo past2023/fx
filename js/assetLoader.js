@@ -108,6 +108,8 @@ export default class AudioManager {
       case 'laserFire': this._tone(context, 260, .11, { endFrequency: 690, type: 'sawtooth', volume: .028, filter: { frequency: 2400 } }); break;
       case 'enemyHit': this._tone(context, 260, .055, { endFrequency: 120, type: 'triangle', volume: .026 }); break;
       case 'enemyExplosion': this._noise(context, .3, .1, 560); this._tone(context, 120, .24, { endFrequency: 38, type: 'sawtooth', volume: .07, filter: { frequency: 700 } }); break;
+      case 'bomb': this._noise(context, .85, .19, 260); this._tone(context, 78, .82, { endFrequency: 16, type: 'sawtooth', volume: .17 }); break;
+      case 'bombCollect': this._tone(context, 360, .26, { endFrequency: 1120, type: 'triangle', volume: .075 }); this._tone(context, 720, .18, { endFrequency: 1480, type: 'sine', volume: .035 }); break;
       case 'novaImpact': this._noise(context, .42, .12, 350); this._tone(context, 95, .36, { endFrequency: 32, type: 'sine', volume: .11 }); break;
       case 'bossFire': this._tone(context, 210, .16, { endFrequency: 95, type: 'sawtooth', volume: .065, filter: { frequency: 1100 } }); break;
       case 'bossHit': this._tone(context, 155, .14, { endFrequency: 80, type: 'sawtooth', volume: .06, filter: { frequency: 820 } }); break;

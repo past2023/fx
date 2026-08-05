@@ -54,8 +54,8 @@ export default class UI {
       if (index === weaponIndex) text(ctx, 'ARMED', x + weaponCardW / 2, 529, 10, COLORS.warning, 'center');
     });
 
-    text(ctx, '← → CHANGE   ·   ↑ ↓ SWITCH PANEL   ·   [U] OPEN FIELD FORGE', width / 2, height - 78, 12, COLORS.muted, 'center');
-    text(ctx, 'PRESS ENTER OR SPACE TO LAUNCH · Q / E SWITCH ALL 5 WEAPON STYLES IN FLIGHT', width / 2, height - 42, 16, `rgba(234,246,255,${pulse})`, 'center');
+    text(ctx, '← → CHANGE   ·   ↑ ↓ SWITCH PANEL   ·   [U] OPEN FIELD FORGE   ·   [X] VOID BOMB', width / 2, height - 78, 12, COLORS.muted, 'center');
+    text(ctx, 'PRESS ENTER OR SPACE TO LAUNCH · TOUCH / XBOX / PLAYSTATION / PSP GAMEPADS READY', width / 2, height - 42, 16, `rgba(234,246,255,${pulse})`, 'center');
   }
 
   _backplate(ctx, width, height) {
@@ -103,6 +103,13 @@ export default class UI {
     text(ctx, `${Math.ceil(player.hp)} / ${player.maxHp}`, 267, 36, 11, COLORS.ink, 'left');
     text(ctx, `SALVAGE  ✦ ${String(game.hangar.coins).padStart(3, '0')}`, 22, 66, 12, COLORS.coin, 'left');
     if (game.runCoins > 0) text(ctx, `+${game.runCoins} THIS RUN`, 22, 82, 9, '#fff1a6', 'left');
+    text(ctx, 'VOID BOMBS [X]', 22, 100, 9, '#ffb27c', 'left');
+    for (let index = 0; index < player.maxBombs; index += 1) {
+      const armed = index < player.bombs;
+      ctx.save(); ctx.globalAlpha = armed ? 1 : .22; ctx.fillStyle = armed ? '#ff765b' : '#8892aa'; ctx.shadowColor = '#ff765b'; ctx.shadowBlur = armed ? 8 : 0;
+      ctx.beginPath(); ctx.arc(115 + index * 18, 100, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffe7b0'; ctx.fillRect(113 + index * 18, 92, 4, 4); ctx.restore();
+    }
 
     text(ctx, 'SCORE', width / 2, 26, 10, COLORS.muted, 'center');
     text(ctx, String(score).padStart(6, '0'), width / 2, 45, 22, COLORS.ink, 'center');
@@ -122,6 +129,8 @@ export default class UI {
     ctx.save(); ctx.globalAlpha = 0.85;
     this._bar(ctx, 22, game.height - 24, 170, 4, progress, COLORS.cyan);
     text(ctx, `SECTOR ${Math.min(99, Math.floor(progress * 100)).toString().padStart(2, '0')}%`, 201, game.height - 22, 10, COLORS.muted, 'left');
+    const controller = game.input.getControllerName();
+    text(ctx, controller ? `PAD LINK // ${controller.slice(0, 20).toUpperCase()}` : 'TOUCH / GAMEPAD READY', width - 22, game.height - 22, 9, controller ? COLORS.health : COLORS.muted, 'right');
     ctx.restore();
   }
 

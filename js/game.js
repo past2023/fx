@@ -120,6 +120,7 @@ export default class Game {
 
   /** Updates state-specific logic and the shared visual transition state. */
   update(dt) {
+    this.input.update();
     this.background.update(dt);
     this.ui.update(dt);
     this.fade = Math.max(0, this.fade - dt * 1.8);
@@ -211,6 +212,7 @@ export default class Game {
   }
 
   _updateBoss(dt) {
+    if (this.input.wasPressed('bomb')) this._useBomb();
     if (this.input.wasPressed('upgrade')) { this._openUpgradeWindow(); return; }
     if (this.bossDeathTimer !== null) {
       this.player.update(dt, this.input, this.width, this.height, this.particles);
@@ -248,6 +250,7 @@ export default class Game {
   }
 
   _updateCombatWorld(dt) {
+    if (this.input.wasPressed('bomb')) this._useBomb();
     this.player.update(dt, this.input, this.width, this.height, this.particles);
     this._handleWeaponSwitching();
     this.weapon.update(dt, this.player, this.input, this.bullets, this.width, this.particles, this.audio);
@@ -312,6 +315,15 @@ export default class Game {
       this.particles.coinCollect(coin.x, coin.y);
       this.audio.playSound('coin');
     }
+
+    for (const bomb of this.enemies.bombPool.items) {
+      if (!bomb.active || !overlaps(bomb.getBounds(), playerBounds)) continue;
+      if (!this.player.addBomb()) continue;
+      bomb.active = false;
+      this.particles.bombCollect(bomb.x, bomb.y);
+      this.audio.playSound('bombCollect');
+      this._announce(`VOID BOMB ACQUIRED // ${this.player.bombs}/${this.player.maxBombs}`, '#ffae75', 1.3);
+    }
   }
 
   _resolveBossInteractions(dt) {
@@ -331,6 +343,29 @@ export default class Game {
     if (this.boss.entered && overlaps(this.boss.getBounds(), playerBounds) && this.player.takeDamage(40)) {
       this.particles.sparks(this.player.x, this.player.y, '#ff93df', 10);
     }
+  }
+
+  _useBomb() {
+    if (!this.player?.useBomb()) {
+      this.audio.playSound('upgradeDenied');
+      this._announce('BOMB BAY EMPTY', COLORS.danger, 1.05);
+      return;
+    }
+    for (const bullet of this.bullets.pool.items) if (bullet.active && bullet.team === 'enemy') this.bullets.release(bullet);
+    for (const enemy of this.enemies.pool.items) {
+      if (!enemy.active) continue;
+      enemy.hp -= GAME.BOMB_ENEMY_DAMAGE;
+      if (enemy.hp <= 0) this._destroyEnemy(enemy);
+    }
+    if (this.state === STATES.BOSS && this.boss.active && !this.boss.dead) {
+      this.boss.takeDamage(GAME.BOMB_BOSS_DAMAGE);
+      if (this.boss.dead) this._destroyBoss();
+    }
+    this.particles.bombBlast(this.player.x, this.player.y);
+    this._shake(.52, 16);
+    this._flash('#ffb36c', .28);
+    this.audio.playSound('bomb');
+    this._announce(`VOID BOMB DETONATED // ${this.player.bombs} REMAINING`, '#ffd08a', 1.7);
   }
 
   _handleWeaponSwitching() {
@@ -545,6 +580,7 @@ export default class Game {
 
   _onFullscreenChange() {
     this.isFullscreen = Boolean(document.fullscreenElement);
+    if (this.isFullscreen) globalThis.screen?.orientation?.lock?.('landscape').catch(() => {});
     if (this.fullscreenButton) {
       this.fullscreenButton.innerHTML = this.isFullscreen ? 'EXIT FULL SCREEN <span>⛶</span>' : 'FULL SCREEN <span>⛶</span>';
       this.fullscreenButton.setAttribute('aria-label', this.isFullscreen ? 'Exit full screen' : 'Enter full screen');

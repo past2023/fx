@@ -17,8 +17,25 @@
       <canvas id="gameCanvas" width="1280" height="720" aria-label="Starfall game canvas">
         Your browser does not support HTML5 Canvas.
       </canvas>
+      <section id="mobileControls" class="mobile-controls" aria-label="Mobile game controls">
+        <div class="mobile-dpad" aria-label="Movement controls">
+          <button type="button" class="mobile-button dpad-up" data-action="up" aria-label="Move up">▲</button>
+          <button type="button" class="mobile-button dpad-left" data-action="left" aria-label="Move left">◀</button>
+          <button type="button" class="mobile-button dpad-center" aria-label="Movement pad">✦</button>
+          <button type="button" class="mobile-button dpad-right" data-action="right" aria-label="Move right">▶</button>
+          <button type="button" class="mobile-button dpad-down" data-action="down" aria-label="Move down">▼</button>
+        </div>
+        <div class="mobile-actions" aria-label="Combat controls">
+          <button type="button" class="mobile-button action-forge" data-action="upgrade">FORGE</button>
+          <button type="button" class="mobile-button action-arms" data-action="nextWeapon">ARMS</button>
+          <button type="button" class="mobile-button action-bomb" data-action="bomb">BOMB</button>
+          <button type="button" class="mobile-button action-fullscreen" data-action="fullscreen" aria-label="Full screen">⛶</button>
+          <button type="button" class="mobile-button action-fire" data-action="shoot start">FIRE</button>
+        </div>
+      </section>
     </div>
-    <p class="controls">MOVE <kbd>WASD</kbd><kbd>← ↑ ↓ →</kbd> &nbsp; FIRE / CONFIRM <kbd>SPACE</kbd> &nbsp; WEAPONS <kbd>Q</kbd><kbd>E</kbd> &nbsp; FIELD FORGE <kbd>U</kbd> &nbsp; FULL SCREEN <kbd>F</kbd></p>
+    <aside class="rotate-device" aria-hidden="true"><span>⤾</span> ROTATE DEVICE FOR LANDSCAPE PLAY</aside>
+    <p class="controls">MOVE <kbd>WASD</kbd><kbd>← ↑ ↓ →</kbd> &nbsp; FIRE / CONFIRM <kbd>SPACE</kbd> &nbsp; BOMB <kbd>X</kbd> &nbsp; WEAPONS <kbd>Q</kbd><kbd>E</kbd> &nbsp; FIELD FORGE <kbd>U</kbd> &nbsp; FULL SCREEN <kbd>F</kbd></p>
   </main>
   <script type="module" src="js/main.js"></script>
 </body>

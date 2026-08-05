@@ -14,6 +14,8 @@ export default class Player {
     this.upgradeTimer = 0;
     this.heat = 0;
     this.laserLockout = 0;
+    this.bombs = GAME.PLAYER_START_BOMBS;
+    this.maxBombs = GAME.PLAYER_MAX_BOMBS;
     this.trailTimer = 0;
     this.alive = true;
     this.configure(ship, upgrades);
@@ -87,6 +89,20 @@ export default class Player {
 
   /** Enables or refreshes the timed weapon overcharge. */
   activateUpgrade() { this.upgradeTimer = Math.max(this.upgradeTimer, GAME.POWERUP_DURATION); }
+
+  /** Adds a recovered full-blast charge, returning false only when the bomb bay is full. */
+  addBomb() {
+    if (this.bombs >= this.maxBombs) return false;
+    this.bombs += 1;
+    return true;
+  }
+
+  /** Spends one bomb charge when available. */
+  useBomb() {
+    if (this.bombs <= 0) return false;
+    this.bombs -= 1;
+    return true;
+  }
 
   /** Returns the hull's axis-aligned collision bounds. */
   getBounds() { return { x: this.x - this.w / 2, y: this.y - this.h / 2, w: this.w, h: this.h }; }
