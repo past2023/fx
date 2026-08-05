@@ -44,7 +44,7 @@ class Enemy {
       this.y += Math.sign(this.jitterY - this.y) * TUNING.ENEMY.DRONE_Y_SPEED * dt;
     }
     this.y = Math.max(this.type.h / 2, Math.min(height - this.type.h / 2, this.y));
-    if (this.x < -this.type.w - 25 || this.x > width + 300) this.active = false;
+    if (this.x < -this.type.w - 25) this.active = false;
   }
 
   getBounds() { return { x: this.x - this.type.w / 2, y: this.y - this.type.h / 2, w: this.type.w, h: this.type.h }; }
@@ -212,31 +212,51 @@ export default class EnemyManager {
     this.schedule.push({ typeId, x, y, delay, wave });
   }
 
-  /** Starts the authored wave corresponding to a distance milestone. */
+  /** Starts one of Level 1's eleven escalating authored wave formations. */
   triggerWave(id, width, height) {
     this.waveNumber = id;
     const mid = height * 0.5;
     const edge = width + 65;
+    const safeY = (ratio) => Math.max(38, Math.min(height - 38, height * ratio));
     if (id === 1) {
-      for (let i = 0; i < 5; i += 1) {
-        const distance = Math.abs(i - 2);
-        this.queue('scout', edge + distance * 100, mid + (i - 2) * 80, i * 0.07);
+      for (let index = 0; index < 7; index += 1) {
+        const distance = Math.abs(index - 3);
+        this.queue('scout', edge + distance * 86, mid + (index - 3) * 62, index * 0.06);
       }
     } else if (id === 2) {
-      [0.28, 0.5, 0.72].forEach((ratio, index) => this.queue('tank', edge + 35, height * ratio, index * 0.5));
+      [0.2, 0.4, 0.6, 0.8].forEach((ratio, index) => this.queue('tank', edge + 35, safeY(ratio), index * 0.42));
     } else if (id === 3) {
       const swarmCenter = mid + (Math.random() - 0.5) * 110;
-      for (let i = 0; i < 8; i += 1) this.queue('drone', edge + i * 35, swarmCenter + (Math.random() - 0.5) * 150, i * 0.08);
+      for (let index = 0; index < 12; index += 1) this.queue('drone', edge + index * 31, swarmCenter + (Math.random() - 0.5) * 210, index * 0.065);
     } else if (id === 4) {
-      this.queue('tank', edge + 30, height * 0.35, 0);
-      this.queue('tank', edge + 80, height * 0.65, 0.5);
-      for (let i = 0; i < 4; i += 1) this.queue('scout', edge + 220 + i * 70, height * (0.3 + i * 0.13), 0.8 + i * 0.11);
+      [0.27, 0.5, 0.73].forEach((ratio, index) => this.queue('tank', edge + index * 52, safeY(ratio), index * 0.36));
+      for (let index = 0; index < 6; index += 1) this.queue('scout', edge + 260 + index * 64, safeY(0.22 + index * 0.115), 0.62 + index * 0.09);
     } else if (id === 5) {
-      for (let i = 0; i < 10; i += 1) {
-        this.queue('scout', edge + (i % 5) * 62, height * (i < 5 ? 0.31 : 0.67) + (i % 5 - 2) * 25, i * 0.12);
+      for (let index = 0; index < 14; index += 1) {
+        this.queue('scout', edge + (index % 7) * 54, safeY(index < 7 ? 0.27 : 0.73) + (index % 7 - 3) * 20, index * 0.085);
       }
     } else if (id === 6) {
       this.queue('heavy', edge + 80, mid, 0);
+      for (let index = 0; index < 5; index += 1) this.queue('drone', edge + 170 + index * 42, safeY(0.2 + index * 0.15), .35 + index * .1);
+    } else if (id === 7) {
+      for (let index = 0; index < 16; index += 1) this.queue('drone', edge + index * 28, safeY(.16 + (index % 8) * .095), index * .055);
+    } else if (id === 8) {
+      [0.18, 0.39, 0.61, 0.82].forEach((ratio, index) => this.queue('tank', edge + index * 45, safeY(ratio), index * .28));
+      for (let index = 0; index < 8; index += 1) this.queue('scout', edge + 230 + index * 52, safeY(.16 + (index % 4) * .23), .58 + index * .075);
+    } else if (id === 9) {
+      for (let index = 0; index < 18; index += 1) {
+        const row = index % 3;
+        this.queue('scout', edge + (index % 6) * 50, safeY(.22 + row * .28) + (index % 6 - 2.5) * 16, index * .06);
+      }
+      for (let index = 0; index < 6; index += 1) this.queue('drone', edge + 360 + index * 36, safeY(.3 + (index % 3) * .2), 1 + index * .09);
+    } else if (id === 10) {
+      this.queue('heavy', edge + 70, safeY(.34), 0);
+      this.queue('heavy', edge + 175, safeY(.66), .55);
+      for (let index = 0; index < 8; index += 1) this.queue('drone', edge + 260 + index * 34, safeY(.12 + (index % 5) * .18), .9 + index * .08);
+    } else if (id === 11) {
+      this.queue('heavy', edge + 90, mid, 0);
+      for (let index = 0; index < 10; index += 1) this.queue('tank', edge + 180 + (index % 5) * 44, safeY(index < 5 ? .22 : .78), .32 + index * .13);
+      for (let index = 0; index < 12; index += 1) this.queue('scout', edge + 420 + index * 45, safeY(.14 + (index % 6) * .14), 1.05 + index * .055);
     }
   }
 

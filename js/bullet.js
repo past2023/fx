@@ -46,6 +46,7 @@ class Bullet {
     this.age = 0;
     this.splashRadius = 0;
     this.pierce = 0;
+    this.phase = 0;
   }
 
   reset(options) {
@@ -62,6 +63,7 @@ class Bullet {
       splashRadius: 0,
       pierce: 0,
       age: 0,
+      phase: 0,
     }, options);
     this.active = true;
     return this;
@@ -152,27 +154,38 @@ class Bullet {
   _renderLaser(ctx) {
     const left = this.x - this.w / 2;
     const right = this.x + this.w / 2;
-    const pulse = 0.78 + Math.sin(this.age * 34) * 0.18;
+    const pulse = 0.8 + Math.sin(this.phase * 34) * 0.18;
     ctx.save();
     ctx.lineCap = 'round';
     ctx.shadowColor = this.color;
-    ctx.shadowBlur = 30;
-    ctx.globalAlpha = 0.18 + pulse * 0.16;
+    ctx.shadowBlur = 34;
+    ctx.globalAlpha = 0.15 + pulse * 0.18;
     ctx.strokeStyle = this.color;
-    ctx.lineWidth = 24;
+    ctx.lineWidth = 30 + pulse * 4;
     ctx.beginPath(); ctx.moveTo(left, this.y); ctx.lineTo(right, this.y); ctx.stroke();
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = 0.86;
     ctx.strokeStyle = this.color;
-    ctx.lineWidth = 7 + pulse * 2;
-    ctx.shadowBlur = 14;
+    ctx.lineWidth = 8 + pulse * 3;
+    ctx.shadowBlur = 16;
     ctx.beginPath(); ctx.moveTo(left, this.y); ctx.lineTo(right, this.y); ctx.stroke();
+    ctx.globalAlpha = 0.65;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.2;
+    ctx.shadowBlur = 0;
+    ctx.setLineDash([12, 20]);
+    ctx.lineDashOffset = -this.phase * 180;
+    ctx.beginPath(); ctx.moveTo(left, this.y - 3); ctx.lineTo(right, this.y - 3); ctx.stroke();
+    ctx.setLineDash([]);
     const core = ctx.createLinearGradient(left, this.y, right, this.y);
-    core.addColorStop(0, '#ffe6fa'); core.addColorStop(0.4, '#ffffff'); core.addColorStop(1, '#ffbaf0');
+    core.addColorStop(0, '#ffe6fa'); core.addColorStop(.35, '#ffffff'); core.addColorStop(.72, '#ffbaf0'); core.addColorStop(1, this.color);
     ctx.globalAlpha = 1;
     ctx.strokeStyle = core;
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 0;
+    ctx.lineWidth = 2.2;
     ctx.beginPath(); ctx.moveTo(left, this.y); ctx.lineTo(right, this.y); ctx.stroke();
+    const emitter = ctx.createRadialGradient(left, this.y, 1, left, this.y, 26);
+    emitter.addColorStop(0, '#ffffff'); emitter.addColorStop(.3, this.color); emitter.addColorStop(1, 'rgba(255,90,220,0)');
+    ctx.fillStyle = emitter;
+    ctx.beginPath(); ctx.arc(left, this.y, 26, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 }
@@ -183,6 +196,7 @@ class Bullet {
 export default class BulletPool {
   constructor(max = GAME.MAX_BULLETS) {
     this.pool = new Pool(() => new Bullet(), max);
+    this.time = 0;
   }
 
   /** Fires a standard moving projectile. */
@@ -207,11 +221,13 @@ export default class BulletPool {
       type: 'laser',
       color,
       life: 0.06,
+      phase: this.time,
     }) || null;
   }
 
   /** Advances active bullets and returns expired objects to their pool. */
   update(dt, width, height) {
+    this.time += dt;
     for (const bullet of this.pool.items) bullet.update(dt, width, height);
   }
 

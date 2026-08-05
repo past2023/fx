@@ -46,7 +46,7 @@ export default class Game {
     this.score = 0;
     this.distance = 0;
     this.nextWave = 0;
-    this.waveMilestones = [500, 1200, 2000, 2800, 3600, 4400];
+    this.waveMilestones = [500, 1200, 2000, 2800, 3600, 4400, 5400, 6400, 7400, 8400, 9300];
     this.fade = 1;
     this.shakeDuration = 0;
     this.shakeMaxDuration = 0;

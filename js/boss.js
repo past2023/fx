@@ -14,7 +14,8 @@ export default class Boss {
   reset(width, height) {
     this.width = width;
     this.height = height;
-    this.x = width + 190;
+    this.scale = TUNING.BOSS.SCALE;
+    this.x = width + 210;
     this.y = height * 0.5;
     this.targetX = width * 0.7;
     this.hp = this.maxHp = TUNING.BOSS.HP;
@@ -54,7 +55,7 @@ export default class Boss {
     this.phaseJustChanged = previousPhase !== this.phase;
 
     const sineSpeed = this.phase === 3 ? 2.6 : 1.1;
-    const sineAmplitude = this.phase === 3 ? 170 : 105;
+    const sineAmplitude = this.phase === 3 ? 195 : this.phase === 2 ? 130 : 105;
     const homeX = width * 0.7;
     if (this.phase === 3) {
       this.dashTimer -= dt;
@@ -86,36 +87,34 @@ export default class Boss {
       this.droneTimer -= dt;
       if (this.droneTimer <= 0) {
         this.droneTimer += TUNING.BOSS.PHASE_THREE_DRONE_INTERVAL;
-        enemies.spawn('drone', this.x - 65, clamp(this.y - 52, 30, height - 30));
-        enemies.spawn('drone', this.x - 65, clamp(this.y + 52, 30, height - 30));
+        enemies.spawn('drone', this.x - 78, clamp(this.y - 76, 30, height - 30));
+        enemies.spawn('drone', this.x - 78, clamp(this.y, 30, height - 30));
+        enemies.spawn('drone', this.x - 78, clamp(this.y + 76, 30, height - 30));
       }
     }
     return { entered: false, phaseChanged: this.phaseJustChanged };
   }
 
   _fireAtPlayer(player, bullets) {
-    const dx = player.x - this.x;
-    const dy = player.y - this.y;
-    const length = Math.hypot(dx, dy) || 1;
-    const baseAngle = Math.atan2(dy, dx);
-    const offsets = this.phase === 3 ? [-0.23, 0, 0.23] : [0];
+    const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
+    const offsets = this.phase === 1 ? [0] : this.phase === 2 ? [-0.14, 0.14] : [-0.42, -0.21, 0, 0.21, 0.42];
+    const damage = this.phase === 3 ? 24 : this.phase === 2 ? 20 : 18;
     for (const offset of offsets) {
       const angle = baseAngle + offset;
       bullets.fire({
-        x: this.x - 70,
-        y: this.y + (offset * 42),
+        x: this.x - 70 * this.scale,
+        y: this.y + offset * 58,
         vx: Math.cos(angle) * TUNING.BOSS.AIMED_BULLET_SPEED,
         vy: Math.sin(angle) * TUNING.BOSS.AIMED_BULLET_SPEED,
-        damage: this.phase === 3 ? 18 : 16,
+        damage,
         team: 'enemy',
         type: 'enemyOrb',
-        color: this.phase === 3 ? '#ff5b8b' : '#c980ff',
-        w: 12,
-        h: 12,
+        color: this.phase === 3 ? '#ff5b8b' : this.phase === 2 ? '#ec78ff' : '#c980ff',
+        w: this.phase === 3 ? 14 : 12,
+        h: this.phase === 3 ? 14 : 12,
         life: 5,
       });
     }
-    void length;
   }
 
   /** Applies player projectile damage once the entry shield has disengaged. */
@@ -127,7 +126,7 @@ export default class Boss {
   }
 
   /** Returns body collision bounds. */
-  getBounds() { return { x: this.x - 92, y: this.y - 78, w: 184, h: 156 }; }
+  getBounds() { return { x: this.x - 98 * this.scale, y: this.y - 84 * this.scale, w: 196 * this.scale, h: 168 * this.scale }; }
 
   /** Tests player AABB against the active laser ray's expanded thickness. */
   laserHits(bounds) {
@@ -173,14 +172,14 @@ export default class Boss {
     ctx.strokeStyle = '#ff4fcf';
     ctx.lineWidth = 28;
     ctx.shadowColor = '#ff4fcf'; ctx.shadowBlur = 28;
-    ctx.beginPath(); ctx.moveTo(this.x - 55, this.y); ctx.lineTo(endX, endY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(this.x - 62 * this.scale, this.y); ctx.lineTo(endX, endY); ctx.stroke();
     ctx.globalAlpha = 0.92;
     ctx.strokeStyle = '#ffd4f3'; ctx.lineWidth = 3; ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.moveTo(this.x - 55, this.y); ctx.lineTo(endX, endY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(this.x - 62 * this.scale, this.y); ctx.lineTo(endX, endY); ctx.stroke();
     ctx.globalAlpha = 0.62;
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
     ctx.setLineDash([10, 16]); ctx.lineDashOffset = -this.age * 140;
-    ctx.beginPath(); ctx.moveTo(this.x - 55, this.y); ctx.lineTo(endX, endY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(this.x - 62 * this.scale, this.y); ctx.lineTo(endX, endY); ctx.stroke();
     ctx.setLineDash([]);
     const source = ctx.createRadialGradient(this.x - 55, this.y, 2, this.x - 55, this.y, 38);
     source.addColorStop(0, 'rgba(255,255,255,.95)'); source.addColorStop(.25, '#ff7be1'); source.addColorStop(1, 'rgba(255,72,204,0)');
@@ -193,12 +192,13 @@ export default class Boss {
     if (!this.active || this.dead) return;
     const sprite = assets?.images?.boss;
     if (sprite) {
-      ctx.drawImage(sprite, this.x - 105, this.y - 92, 210, 184);
+      ctx.drawImage(sprite, this.x - 105 * this.scale, this.y - 92 * this.scale, 210 * this.scale, 184 * this.scale);
       return;
     }
     const pulse = 0.72 + Math.sin(this.age * 4) * 0.28;
     ctx.save();
     ctx.translate(this.x, this.y);
+    ctx.scale(this.scale, this.scale);
     ctx.shadowColor = '#a969ff'; ctx.shadowBlur = 22;
     ctx.fillStyle = '#263052'; ctx.strokeStyle = '#d4ccff'; ctx.lineWidth = 2;
     ctx.beginPath();

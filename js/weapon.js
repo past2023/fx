@@ -12,6 +12,7 @@ export default class WeaponSystem {
     this.burstRemaining = 0;
     this.burstTimer = 0;
     this.laserFxTimer = 0;
+    this.laserBeamTimer = 0;
   }
 
   /** Replaces the active weapon with a menu selection or specific loadout entry. */
@@ -30,6 +31,7 @@ export default class WeaponSystem {
     this.burstRemaining = 0;
     this.burstTimer = 0;
     this.laserFxTimer = 0;
+    this.laserBeamTimer = 0;
     return this.weapon;
   }
 
@@ -117,6 +119,7 @@ export default class WeaponSystem {
     const upgrade = player.upgradeTimer > 0;
     player.laserLockout = Math.max(0, player.laserLockout - dt);
     this.laserFxTimer = Math.max(0, this.laserFxTimer - dt);
+    this.laserBeamTimer = Math.max(0, this.laserBeamTimer - dt);
     const cooling = this.weapon.coolPerSecond * (upgrade ? 1.3 : 1);
     if (!holdingFire || player.laserLockout > 0) {
       player.heat = Math.max(0, player.heat - cooling * dt);
@@ -125,10 +128,15 @@ export default class WeaponSystem {
 
     const heatUse = this.weapon.heatPerSecond * (upgrade ? 0.7 : 1);
     player.heat = Math.min(100, player.heat + heatUse * dt);
-    bullets.fireLaser(player.x + 22, player.y, canvasWidth - player.x - 22, this.weapon.damagePerSecond * dt * (upgrade ? 2 : 1), this.weapon.color);
+    const beamWidth = canvasWidth - player.x - 22;
+    bullets.fireLaser(player.x + 22, player.y, beamWidth, this.weapon.damagePerSecond * dt * (upgrade ? 2 : 1), this.weapon.color);
     if (this.laserFxTimer <= 0) {
       particles.laserMuzzle(player.x + 22, player.y, this.weapon.color);
       this.laserFxTimer += TUNING.WEAPON.LASER_FX_INTERVAL;
+    }
+    if (this.laserBeamTimer <= 0) {
+      particles.laserBeam(player.x + 22, player.y, beamWidth, this.weapon.color);
+      this.laserBeamTimer += TUNING.WEAPON.LASER_BEAM_FLICKER_INTERVAL;
     }
     if (player.heat >= 100) player.laserLockout = this.weapon.lockout;
   }

@@ -59,19 +59,31 @@ export default class ParticleSystem {
 
   /** Adds a bright muzzle bloom and directional ion sparks for a weapon discharge. */
   muzzle(x, y, color, intensity = 1) {
-    this._spawn(x, y, -35 * intensity, 0, 0.12, 7 * intensity, '#ffffff', { kind: 'ring', grow: 28 * intensity, drag: 0 });
-    for (let i = 0; i < 3; i += 1) {
-      const angle = (Math.random() - 0.5) * 0.72;
-      const speed = (90 + Math.random() * 110) * intensity;
-      this._spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0.12 + Math.random() * 0.09, 2 + Math.random() * 2, color, { kind: 'spark', drag: 3.5 });
+    this._spawn(x, y, -35 * intensity, 0, 0.13, 7 * intensity, color, { kind: 'ring', grow: 34 * intensity, drag: 0 });
+    this._spawn(x, y, 45 * intensity, 0, 0.11, 11 * intensity, '#ffffff', { kind: 'flare', drag: 4 });
+    for (let i = 0; i < 5; i += 1) {
+      const angle = (Math.random() - 0.5) * 0.94;
+      const speed = (100 + Math.random() * 150) * intensity;
+      this._spawn(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 0.12 + Math.random() * 0.1, 1.6 + Math.random() * 2.4, color, { kind: 'spark', drag: 3.6 });
     }
   }
 
   /** Emits thin electrical motes at the laser emitter without creating a full burst. */
   laserMuzzle(x, y, color) {
-    for (let i = 0; i < 2; i += 1) {
-      const offset = (Math.random() - 0.5) * 13;
-      this._spawn(x + Math.random() * 14, y + offset, 45 + Math.random() * 100, offset * 2, 0.1 + Math.random() * 0.08, 1.2 + Math.random() * 1.6, color, { kind: 'spark', drag: 4 });
+    this._spawn(x, y, 0, 0, 0.14, 6, color, { kind: 'ring', grow: 25, drag: 0 });
+    this._spawn(x, y, 68, 0, 0.1, 9, '#ffffff', { kind: 'flare', drag: 5 });
+    for (let i = 0; i < 4; i += 1) {
+      const offset = (Math.random() - 0.5) * 16;
+      this._spawn(x + Math.random() * 18, y + offset, 55 + Math.random() * 145, offset * 2, 0.1 + Math.random() * 0.08, 1.1 + Math.random() * 1.8, color, { kind: 'spark', drag: 4 });
+    }
+  }
+
+  /** Places intermittent ion fragments along a sustained beam for a living energy effect. */
+  laserBeam(x, y, width, color) {
+    for (let index = 0; index < 3; index += 1) {
+      const beamX = x + 20 + Math.random() * Math.max(20, width - 30);
+      const offset = (Math.random() - 0.5) * 11;
+      this._spawn(beamX, y + offset, 35 + Math.random() * 90, (Math.random() - .5) * 25, .075 + Math.random() * .055, 1 + Math.random() * 1.7, color, { kind: 'spark', drag: 5 });
     }
   }
 
@@ -137,6 +149,14 @@ export default class ParticleSystem {
         ctx.moveTo(particle.x, particle.y);
         ctx.lineTo(particle.x - particle.vx / magnitude * length, particle.y - particle.vy / magnitude * length);
         ctx.stroke();
+      } else if (particle.kind === 'flare') {
+        const radius = Math.max(1, particle.size * (0.45 + ratio * 0.65));
+        const flare = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, radius);
+        flare.addColorStop(0, '#ffffff');
+        flare.addColorStop(.3, particle.color);
+        flare.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = flare;
+        ctx.beginPath(); ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2); ctx.fill();
       } else {
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, Math.max(0.35, particle.size * ratio), 0, Math.PI * 2);
