@@ -26,7 +26,7 @@ export default class Game {
     this.isFullscreen = false;
     this.assets = assets;
     this.audio = new AudioManager(assets);
-    this.input = new InputManager(window);
+    this.input = new InputManager(window, () => this.audio.unlock());
     this.background = new Background();
     this.bullets = new BulletPool();
     this.enemies = new EnemyManager();
@@ -46,7 +46,7 @@ export default class Game {
     this.score = 0;
     this.distance = 0;
     this.nextWave = 0;
-    this.waveMilestones = [500, 1200, 2000, 2800, 3600, 4400, 5400, 6400, 7400, 8400, 9300];
+    this.waveMilestones = [500, 1200, 2000, 2800, 3600, 4400, 5400, 6400, 7400, 8400, 9300, 10400, 11500, 12600, 13700, 14800, 15600];
     this.fade = 1;
     this.shakeDuration = 0;
     this.shakeMaxDuration = 0;
@@ -222,7 +222,7 @@ export default class Game {
 
     this.player.update(dt, this.input, this.width, this.height, this.particles);
     this._handleWeaponSwitching();
-    this.weapon.update(dt, this.player, this.input, this.bullets, this.width, this.particles);
+    this.weapon.update(dt, this.player, this.input, this.bullets, this.width, this.particles, this.audio);
     this.enemies.update(dt, this.width, this.height, this.player);
     const bossEvent = this.boss.update(dt, this.player, this.bullets, this.enemies, this.width, this.height);
     if (bossEvent.entered) {
@@ -232,6 +232,7 @@ export default class Game {
       this._announce('MOTHER SHIP // SHIELDS DOWN', '#ffb4ec', 2.1);
       this._flash('#bd7dff', 0.2);
     }
+    if (bossEvent.fired) this.audio.playSound('bossFire');
     if (bossEvent.phaseChanged) {
       this._shake(0.32, 9);
       this.audio.playSound('bossPhase');
@@ -249,7 +250,7 @@ export default class Game {
   _updateCombatWorld(dt) {
     this.player.update(dt, this.input, this.width, this.height, this.particles);
     this._handleWeaponSwitching();
-    this.weapon.update(dt, this.player, this.input, this.bullets, this.width, this.particles);
+    this.weapon.update(dt, this.player, this.input, this.bullets, this.width, this.particles, this.audio);
     this.enemies.update(dt, this.width, this.height, this.player);
     this.bullets.update(dt, this.width, this.height);
     this.particles.update(dt);
@@ -271,6 +272,7 @@ export default class Game {
           }
           enemy.hp -= bullet.damage;
           this.particles.sparks(bullet.x, bullet.y, bullet.color, bullet.type === 'laser' ? 2 : 6);
+          if (bullet.type !== 'laser') this.audio.playSound('enemyHit');
           if (enemy.hp <= 0) this._destroyEnemy(enemy);
           if (bullet.type !== 'laser') { this.bullets.release(bullet); break; }
         }
@@ -318,6 +320,7 @@ export default class Game {
       if (!bullet.active || bullet.team !== 'player' || !overlaps(bullet.getBounds(), this.boss.getBounds())) continue;
       const damaged = this.boss.takeDamage(bullet.damage);
       this.particles.sparks(bullet.x, bullet.y, damaged ? '#ffb4ec' : '#6eeeff', bullet.type === 'laser' ? 2 : 6);
+      if (damaged && bullet.type !== 'laser') this.audio.playSound('bossHit');
       if (bullet.type !== 'laser') this.bullets.release(bullet);
       if (this.boss.dead) { this._destroyBoss(); break; }
     }
@@ -405,7 +408,7 @@ export default class Game {
   }
 
   _updateUpgradeWindow() {
-    if (this.input.wasPressed('pause') || this.input.wasPressed('upgrade')) {
+    if (this.input.wasPressed('upgrade')) {
       this._closeUpgradeWindow();
       return;
     }
@@ -495,6 +498,7 @@ export default class Game {
       this.audio.playMusic('boss');
     } else if (state === STATES.VICTORY || state === STATES.GAME_OVER) {
       this.audio.stopMusic();
+      this.audio.playSound(state === STATES.VICTORY ? 'victory' : 'gameOver');
     }
   }
 

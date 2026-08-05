@@ -34,7 +34,7 @@ export default class Boss {
 
   /** Updates entry movement, phase selection and boss attacks. */
   update(dt, player, bullets, enemies, width, height) {
-    if (!this.active || this.dead) return { entered: false, phaseChanged: false };
+    if (!this.active || this.dead) return { entered: false, phaseChanged: false, fired: false };
     this.width = width; this.height = height;
     this.age += dt;
     this.phaseJustChanged = false;
@@ -44,9 +44,9 @@ export default class Boss {
       if (this.x <= this.targetX) {
         this.x = this.targetX;
         this.entered = true;
-        return { entered: true, phaseChanged: false };
+        return { entered: true, phaseChanged: false, fired: false };
       }
-      return { entered: false, phaseChanged: false };
+      return { entered: false, phaseChanged: false, fired: false };
     }
 
     const previousPhase = this.phase;
@@ -76,11 +76,13 @@ export default class Boss {
     this.x = clamp(this.x, width * 0.4, width * 0.82);
     this.y = clamp(this.y, 120, height - 120);
 
+    let fired = false;
     this.aimTimer -= dt;
     const interval = this.phase === 1 ? TUNING.BOSS.PHASE_ONE_AIM_INTERVAL : this.phase === 2 ? TUNING.BOSS.PHASE_TWO_AIM_INTERVAL : TUNING.BOSS.PHASE_THREE_AIM_INTERVAL;
     if (this.aimTimer <= 0) {
       this.aimTimer += interval;
       this._fireAtPlayer(player, bullets);
+      fired = true;
     }
     if (this.phase >= 2) this.laserAngle = Math.PI + Math.sin(this.age * (this.phase === 3 ? 1.9 : 1.15)) * 0.82;
     if (this.phase === 3) {
@@ -92,7 +94,7 @@ export default class Boss {
         enemies.spawn('drone', this.x - 78, clamp(this.y + 76, 30, height - 30));
       }
     }
-    return { entered: false, phaseChanged: this.phaseJustChanged };
+    return { entered: false, phaseChanged: this.phaseJustChanged, fired };
   }
 
   _fireAtPlayer(player, bullets) {

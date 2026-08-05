@@ -257,6 +257,29 @@ export default class EnemyManager {
       this.queue('heavy', edge + 90, mid, 0);
       for (let index = 0; index < 10; index += 1) this.queue('tank', edge + 180 + (index % 5) * 44, safeY(index < 5 ? .22 : .78), .32 + index * .13);
       for (let index = 0; index < 12; index += 1) this.queue('scout', edge + 420 + index * 45, safeY(.14 + (index % 6) * .14), 1.05 + index * .055);
+    } else if (id === 12) {
+      for (let index = 0; index < 22; index += 1) this.queue('drone', edge + index * 27, safeY(.1 + (index % 10) * .085), index * .045);
+    } else if (id === 13) {
+      this.queue('heavy', edge + 80, safeY(.3), 0);
+      this.queue('heavy', edge + 185, safeY(.7), .48);
+      for (let index = 0; index < 14; index += 1) this.queue('scout', edge + 290 + (index % 7) * 48, safeY(index < 7 ? .18 : .82), .86 + index * .065);
+    } else if (id === 14) {
+      [0.15, .29, .43, .57, .71, .85].forEach((ratio, index) => this.queue('tank', edge + index * 38, safeY(ratio), index * .2));
+      for (let index = 0; index < 12; index += 1) this.queue('drone', edge + 260 + index * 32, safeY(.14 + (index % 6) * .14), .6 + index * .07);
+    } else if (id === 15) {
+      this.queue('heavy', edge + 90, mid, 0);
+      for (let index = 0; index < 18; index += 1) this.queue('scout', edge + 170 + (index % 9) * 44, safeY(.18 + (index % 3) * .31) + (index % 6 - 2.5) * 12, .24 + index * .05);
+      for (let index = 0; index < 8; index += 1) this.queue('drone', edge + 470 + index * 35, safeY(.22 + (index % 4) * .19), 1 + index * .08);
+    } else if (id === 16) {
+      this.queue('heavy', edge + 65, safeY(.25), 0);
+      this.queue('heavy', edge + 155, safeY(.75), .42);
+      for (let index = 0; index < 10; index += 1) this.queue('tank', edge + 260 + (index % 5) * 45, safeY(index < 5 ? .16 : .84), .8 + index * .1);
+      for (let index = 0; index < 10; index += 1) this.queue('drone', edge + 520 + index * 30, safeY(.1 + (index % 7) * .12), 1.55 + index * .06);
+    } else if (id === 17) {
+      this.queue('heavy', edge + 90, mid, 0);
+      for (let index = 0; index < 8; index += 1) this.queue('tank', edge + 185 + (index % 4) * 48, safeY(index < 4 ? .23 : .77), .3 + index * .14);
+      for (let index = 0; index < 16; index += 1) this.queue('drone', edge + 390 + index * 29, safeY(.08 + (index % 9) * .105), 1.15 + index * .05);
+      for (let index = 0; index < 16; index += 1) this.queue('scout', edge + 590 + index * 42, safeY(.15 + (index % 6) * .14), 1.9 + index * .045);
     }
   }
 

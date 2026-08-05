@@ -263,7 +263,7 @@ export default class UI {
     ctx.fillStyle = 'rgba(3, 8, 24, .82)'; ctx.fillRect(x, y + panelHeight - 53, panelWidth, 53);
     text(ctx, '← → SELECT MODULE', x + 24, y + panelHeight - 26, 11, COLORS.muted, 'left');
     text(ctx, 'ENTER / SPACE INSTALL', x + panelWidth / 2, y + panelHeight - 26, 12, COLORS.ink, 'center');
-    text(ctx, 'U / ESC CLOSE FORGE', x + panelWidth - 24, y + panelHeight - 26, 11, COLORS.muted, 'right');
+    text(ctx, 'U CLOSE FORGE', x + panelWidth - 24, y + panelHeight - 26, 11, COLORS.muted, 'right');
     ctx.restore();
   }
 

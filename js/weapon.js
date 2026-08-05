@@ -13,6 +13,7 @@ export default class WeaponSystem {
     this.burstTimer = 0;
     this.laserFxTimer = 0;
     this.laserBeamTimer = 0;
+    this.laserAudioTimer = 0;
   }
 
   /** Replaces the active weapon with a menu selection or specific loadout entry. */
@@ -32,14 +33,15 @@ export default class WeaponSystem {
     this.burstTimer = 0;
     this.laserFxTimer = 0;
     this.laserBeamTimer = 0;
+    this.laserAudioTimer = 0;
     return this.weapon;
   }
 
   /** Handles cooldown, burst, projectile and continuous-beam fire. */
-  update(dt, player, input, bullets, canvasWidth, particles) {
+  update(dt, player, input, bullets, canvasWidth, particles, audio = null) {
     const holdingFire = input.isDown('shoot');
     if (this.weapon.id === 'laser') {
-      this._updateLaser(dt, player, holdingFire, bullets, canvasWidth, particles);
+      this._updateLaser(dt, player, holdingFire, bullets, canvasWidth, particles, audio);
       return;
     }
 
@@ -47,7 +49,7 @@ export default class WeaponSystem {
     if (this.weapon.id === 'pulse' && this.burstRemaining > 0) {
       this.burstTimer -= dt;
       if (this.burstTimer <= 0) {
-        this._emitPulse(player, bullets, particles);
+        this._emitPulse(player, bullets, particles, audio);
         this.burstRemaining -= 1;
         this.burstTimer += this.weapon.burstDelay;
       }
@@ -58,24 +60,25 @@ export default class WeaponSystem {
     const upgrade = player.upgradeTimer > 0;
     const cooldown = player.ship.cooldown * player.cooldownMultiplier * this.weapon.cooldownMultiplier / (upgrade ? 2 : 1);
     player.fireTimer = cooldown;
-    if (this.weapon.id === 'spread') this._emitSpread(player, bullets, particles, upgrade);
+    if (this.weapon.id === 'spread') this._emitSpread(player, bullets, particles, upgrade, audio);
     else if (this.weapon.id === 'pulse') {
       this.burstRemaining = this.weapon.burstCount;
       this.burstTimer = 0;
-    } else if (this.weapon.id === 'nova') this._emitNova(player, bullets, particles, upgrade);
-    else this._emitBlaster(player, bullets, particles, upgrade);
+    } else if (this.weapon.id === 'nova') this._emitNova(player, bullets, particles, upgrade, audio);
+    else this._emitBlaster(player, bullets, particles, upgrade, audio);
   }
 
-  _emitBlaster(player, bullets, particles, upgrade) {
+  _emitBlaster(player, bullets, particles, upgrade, audio) {
     bullets.fire({
       x: player.x + 24, y: player.y, vx: TUNING.WEAPON.BLASTER_SPEED, vy: 0,
       damage: this.weapon.damage * (upgrade ? 2 : 1), team: 'player', color: this.weapon.color,
       w: 14, h: 6, type: 'blaster',
     });
     particles.muzzle(player.x + 22, player.y, this.weapon.color, 0.8);
+    audio?.playSound('blasterFire');
   }
 
-  _emitSpread(player, bullets, particles, upgrade) {
+  _emitSpread(player, bullets, particles, upgrade, audio) {
     const damage = this.weapon.damage * (upgrade ? 2 : 1);
     for (const angle of [-15, 0, 15]) {
       const radians = angle * Math.PI / 180;
@@ -93,9 +96,10 @@ export default class WeaponSystem {
       });
     }
     particles.muzzle(player.x + 22, player.y, this.weapon.color, 1.1);
+    audio?.playSound('spreadFire');
   }
 
-  _emitPulse(player, bullets, particles) {
+  _emitPulse(player, bullets, particles, audio) {
     const upgrade = player.upgradeTimer > 0;
     bullets.fire({
       x: player.x + 25, y: player.y + (Math.random() - 0.5) * 5,
@@ -104,22 +108,25 @@ export default class WeaponSystem {
       w: 8, h: 8, type: 'pulse',
     });
     particles.muzzle(player.x + 21, player.y, this.weapon.color, 0.55);
+    audio?.playSound('pulseFire');
   }
 
-  _emitNova(player, bullets, particles, upgrade) {
+  _emitNova(player, bullets, particles, upgrade, audio) {
     bullets.fire({
       x: player.x + 27, y: player.y, vx: TUNING.WEAPON.NOVA_SPEED, vy: 0,
       damage: this.weapon.damage * (upgrade ? 2 : 1), team: 'player', color: this.weapon.color,
       w: 22, h: 22, type: 'nova', splashRadius: this.weapon.splashRadius,
     });
     particles.muzzle(player.x + 22, player.y, this.weapon.color, 1.55);
+    audio?.playSound('novaFire');
   }
 
-  _updateLaser(dt, player, holdingFire, bullets, canvasWidth, particles) {
+  _updateLaser(dt, player, holdingFire, bullets, canvasWidth, particles, audio) {
     const upgrade = player.upgradeTimer > 0;
     player.laserLockout = Math.max(0, player.laserLockout - dt);
     this.laserFxTimer = Math.max(0, this.laserFxTimer - dt);
     this.laserBeamTimer = Math.max(0, this.laserBeamTimer - dt);
+    this.laserAudioTimer = Math.max(0, this.laserAudioTimer - dt);
     const cooling = this.weapon.coolPerSecond * (upgrade ? 1.3 : 1);
     if (!holdingFire || player.laserLockout > 0) {
       player.heat = Math.max(0, player.heat - cooling * dt);
@@ -137,6 +144,10 @@ export default class WeaponSystem {
     if (this.laserBeamTimer <= 0) {
       particles.laserBeam(player.x + 22, player.y, beamWidth, this.weapon.color);
       this.laserBeamTimer += TUNING.WEAPON.LASER_BEAM_FLICKER_INTERVAL;
+    }
+    if (this.laserAudioTimer <= 0) {
+      audio?.playSound('laserFire');
+      this.laserAudioTimer += 0.1;
     }
     if (player.heat >= 100) player.laserLockout = this.weapon.lockout;
   }

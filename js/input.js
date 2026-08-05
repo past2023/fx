@@ -2,8 +2,9 @@
  * Converts keyboard events into persistent abstract actions and one-frame presses.
  */
 export default class InputManager {
-  constructor(target = window) {
+  constructor(target = window, onInteraction = null) {
     this.target = target;
+    this.onInteraction = onInteraction;
     this.down = new Set();
     this.pressed = new Set();
     this.bindings = new Map([
@@ -13,7 +14,6 @@ export default class InputManager {
       ['ArrowDown', ['down']], ['KeyS', ['down']],
       ['Space', ['shoot', 'start']], ['Enter', ['start']],
       ['KeyQ', ['previousWeapon']], ['KeyE', ['nextWeapon']], ['KeyU', ['upgrade']], ['KeyF', ['fullscreen']],
-      ['Escape', ['pause']],
     ]);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
@@ -25,6 +25,7 @@ export default class InputManager {
     const actions = this.bindings.get(event.code);
     if (!actions) return;
     event.preventDefault();
+    this.onInteraction?.();
     for (const action of actions) {
       if (!this.down.has(action)) this.pressed.add(action);
       this.down.add(action);
@@ -35,6 +36,7 @@ export default class InputManager {
     const actions = this.bindings.get(event.code);
     if (!actions) return;
     event.preventDefault();
+    this.onInteraction?.();
     for (const action of actions) this.down.delete(action);
   }
 

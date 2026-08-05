@@ -12,6 +12,8 @@ export default class Background {
     this.near = [];
     this.mid = [];
     this.foreground = [];
+    this.asteroids = [];
+    this.asteroidTimer = TUNING.BACKGROUND.ASTEROID_MIN_INTERVAL;
     this.nebulaOffset = 0;
     this.time = 0;
   }
@@ -24,6 +26,8 @@ export default class Background {
     this.near = this._makeStars(62, 0.75, 2.0, 0.78);
     this.mid = this._makeStars(38, 1.0, 2.8, 0.92);
     this.foreground = this._makeStreaks(22);
+    this.asteroids.length = 0;
+    this.asteroidTimer = TUNING.BACKGROUND.ASTEROID_MIN_INTERVAL + Math.random() * TUNING.BACKGROUND.ASTEROID_INTERVAL_VARIANCE;
   }
 
   _makeStars(count, minSize, maxSize, opacity) {
@@ -70,6 +74,46 @@ export default class Background {
     }
   }
 
+  _spawnAsteroid() {
+    const radius = 17 + Math.random() * 30;
+    const pointCount = 7 + Math.floor(Math.random() * 4);
+    const points = [];
+    for (let index = 0; index < pointCount; index += 1) {
+      const angle = index / pointCount * Math.PI * 2;
+      points.push({ angle, radius: radius * (0.68 + Math.random() * 0.42) });
+    }
+    const craters = Array.from({ length: 3 }, () => ({
+      x: (Math.random() - .5) * radius,
+      y: (Math.random() - .5) * radius,
+      r: 2 + Math.random() * radius * .13,
+    }));
+    this.asteroids.push({
+      x: this.width + radius + Math.random() * 110,
+      y: radius + 28 + Math.random() * Math.max(1, this.height - radius * 2 - 56),
+      radius,
+      points,
+      craters,
+      angle: Math.random() * Math.PI * 2,
+      spin: (Math.random() - .5) * .42,
+      speed: TUNING.BACKGROUND.ASTEROID_MIN_SPEED + Math.random() * TUNING.BACKGROUND.ASTEROID_SPEED_VARIANCE,
+      alpha: .28 + Math.random() * .37,
+    });
+  }
+
+  _updateAsteroids(dt) {
+    this.asteroidTimer -= dt;
+    if (this.asteroidTimer <= 0 && this.asteroids.length < 3) {
+      this._spawnAsteroid();
+      this.asteroidTimer += TUNING.BACKGROUND.ASTEROID_MIN_INTERVAL + Math.random() * TUNING.BACKGROUND.ASTEROID_INTERVAL_VARIANCE;
+    }
+    for (let index = this.asteroids.length - 1; index >= 0; index -= 1) {
+      const asteroid = this.asteroids[index];
+      asteroid.x -= asteroid.speed * dt;
+      asteroid.angle += asteroid.spin * dt;
+      if (asteroid.x < -asteroid.radius * 2) this.asteroids.splice(index, 1);
+    }
+  }
+
   /** Advances all parallax layers using seconds. */
   update(dt) {
     this.time += dt;
@@ -78,6 +122,7 @@ export default class Background {
     this._updateLayer(this.near, TUNING.BACKGROUND.NEAR_STAR_SPEED, dt);
     this._updateLayer(this.mid, TUNING.BACKGROUND.MID_STAR_SPEED, dt);
     this._updateStreaks(dt);
+    this._updateAsteroids(dt);
   }
 
   /** Draws the deep-space backdrop and all parallax depths in painter's order. */
@@ -94,6 +139,7 @@ export default class Background {
     this._renderLayer(ctx, this.far, 1);
     this._renderLayer(ctx, this.near, 1.3);
     this._renderLayer(ctx, this.mid, 1.9);
+    this._renderAsteroids(ctx);
     this._renderStreaks(ctx);
   }
 
@@ -142,6 +188,31 @@ export default class Background {
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+  }
+
+  _renderAsteroids(ctx) {
+    for (const asteroid of this.asteroids) {
+      ctx.save();
+      ctx.translate(asteroid.x, asteroid.y); ctx.rotate(asteroid.angle);
+      ctx.globalAlpha = asteroid.alpha;
+      ctx.shadowColor = '#697aa0'; ctx.shadowBlur = 12;
+      const rock = ctx.createRadialGradient(-asteroid.radius * .28, -asteroid.radius * .34, 2, 0, 0, asteroid.radius * 1.1);
+      rock.addColorStop(0, '#aab4ca'); rock.addColorStop(.38, '#59637b'); rock.addColorStop(1, '#1d2335');
+      ctx.fillStyle = rock; ctx.strokeStyle = 'rgba(207, 221, 255, .36)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      asteroid.points.forEach((point, index) => {
+        const px = Math.cos(point.angle) * point.radius;
+        const py = Math.sin(point.angle) * point.radius;
+        if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(13, 18, 31, .55)';
+      for (const crater of asteroid.craters) {
+        ctx.beginPath(); ctx.arc(crater.x, crater.y, crater.r, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
   }
 
   _renderStreaks(ctx) {
