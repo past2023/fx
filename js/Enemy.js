@@ -18,6 +18,7 @@ import {
   drawMatrix, drawMatrixFlat, px, pxBorder, glow,
 } from '#game/Sprite.js';
 import { sfx } from '#game/Sound.js';
+import { art } from '#game/Assets.js';
 
 /** Shared behaviour: HP, hit flash, death burst, off-screen culling. */
 export class Enemy {
@@ -137,11 +138,20 @@ export class Grunt extends Enemy {
 
   draw(ctx) {
     const s = PX;
-    if (this.flash > 0) drawMatrixFlat(ctx, SPR_GRUNT, this.x, this.y, s, COLORS.white);
-    else drawMatrix(ctx, SPR_GRUNT, PAL_GRUNT, this.x, this.y, s);
-    // Blinking targeting eye.
-    if (Math.floor(this.age * 4) % 2 === 0) {
-      glow(ctx, COLORS.red, 6, () => px(ctx, this.x - 2, this.y - 2, 4, 4, COLORS.yellow));
+    const frame = Math.floor(this.age * 6) % 2;
+    if (!art.draw(ctx, 'enemy.grunt', this.x, this.y, { frame })) {
+      if (this.flash > 0) drawMatrixFlat(ctx, SPR_GRUNT, this.x, this.y, s, COLORS.white);
+      else drawMatrix(ctx, SPR_GRUNT, PAL_GRUNT, this.x, this.y, s);
+      // Blinking targeting eye.
+      if (Math.floor(this.age * 4) % 2 === 0) {
+        glow(ctx, COLORS.red, 6, () => px(ctx, this.x - 2, this.y - 2, 4, 4, COLORS.yellow));
+      }
+    } else if (this.flash > 0) {
+      // Hit flash over PNG art: additive white silhouette.
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      art.draw(ctx, 'enemy.grunt', this.x, this.y, { frame, alpha: 0.9 });
+      ctx.restore();
     }
     this.drawHealth(ctx);
   }
@@ -184,8 +194,16 @@ export class JetSki extends Enemy {
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(this.y));
     ctx.rotate(clamp(this.vx / 400, -0.5, 0.5));
-    if (this.flash > 0) drawMatrixFlat(ctx, SPR_JETSKI, 0, 0, s, COLORS.white);
-    else drawMatrix(ctx, SPR_JETSKI, PAL_JETSKI, 0, 0, s);
+    const frame = this.locked ? 1 : 0;
+    if (!art.draw(ctx, 'enemy.jetski', 0, 0, { frame })) {
+      if (this.flash > 0) drawMatrixFlat(ctx, SPR_JETSKI, 0, 0, s, COLORS.white);
+      else drawMatrix(ctx, SPR_JETSKI, PAL_JETSKI, 0, 0, s);
+    } else if (this.flash > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      art.draw(ctx, 'enemy.jetski', 0, 0, { frame, alpha: 0.9 });
+      ctx.restore();
+    }
     ctx.restore();
     // Lock-on warning glint.
     if (this.locked && Math.floor(this.age * 10) % 2 === 0) {
@@ -237,15 +255,33 @@ export class Helicopter extends Enemy {
   draw(ctx) {
     const s = PX;
     // Rotor blur.
-    const spin = Math.abs(Math.cos(this.rotor));
-    const rw = 22 + spin * 26;
-    ctx.globalAlpha = 0.55;
-    px(ctx, this.x - rw, this.y - this.h / 2 - 8, rw * 2, 3, COLORS.grey);
-    ctx.globalAlpha = 1;
-    px(ctx, this.x - 2, this.y - this.h / 2 - 10, 4, 8, COLORS.greyDark);
+    const frame = Math.floor(this.age * 5) % 2;
+    const hasArt = art.has('enemy.helicopter');
 
-    if (this.flash > 0) drawMatrixFlat(ctx, SPR_HELI, this.x, this.y, s, COLORS.white);
-    else drawMatrix(ctx, SPR_HELI, PAL_HELI, this.x, this.y, s);
+    if (!hasArt) {
+      const spin = Math.abs(Math.cos(this.rotor));
+      const rw = 22 + spin * 26;
+      ctx.globalAlpha = 0.55;
+      px(ctx, this.x - rw, this.y - this.h / 2 - 8, rw * 2, 3, COLORS.grey);
+      ctx.globalAlpha = 1;
+      px(ctx, this.x - 2, this.y - this.h / 2 - 10, 4, 8, COLORS.greyDark);
+      if (this.flash > 0) drawMatrixFlat(ctx, SPR_HELI, this.x, this.y, s, COLORS.white);
+      else drawMatrix(ctx, SPR_HELI, PAL_HELI, this.x, this.y, s);
+    } else {
+      art.draw(ctx, 'enemy.helicopter', this.x, this.y, { frame });
+      // Rotor squashes horizontally to fake the spin.
+      const spin = Math.abs(Math.cos(this.rotor));
+      art.draw(ctx, 'enemy.rotor', this.x, this.y - this.h / 2 - 8, {
+        frame: Math.floor(this.rotor * 3) % 3,
+        scale: 1, alpha: 0.6 + spin * 0.4,
+      });
+      if (this.flash > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        art.draw(ctx, 'enemy.helicopter', this.x, this.y, { frame, alpha: 0.9 });
+        ctx.restore();
+      }
+    }
 
     // Shadow on the water below.
     ctx.globalAlpha = 0.25;
@@ -384,6 +420,25 @@ export class Boss extends Enemy {
 
   draw(ctx) {
     const flash = this.flash > 0;
+    // PNG boss art replaces the blocky hull; muzzle flashes and warning
+    // lights stay procedural so they keep animating with the phase logic.
+    if (art.draw(ctx, 'enemy.boss', this.x, this.y, { frame: this.phase >= 2 ? 1 : 0 })) {
+      if (flash) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        art.draw(ctx, 'enemy.boss', this.x, this.y, { frame: this.phase >= 2 ? 1 : 0, alpha: 0.85 });
+        ctx.restore();
+      }
+      const lit2 = Math.floor(this.age * (4 + this.phase * 3)) % 2 === 0;
+      if (lit2) {
+        glow(ctx, COLORS.red, 8, () => {
+          px(ctx, this.x - this.w / 2 + 12, this.y - this.h / 2 + 12, 6, 6, COLORS.red);
+          px(ctx, this.x + this.w / 2 - 18, this.y - this.h / 2 + 12, 6, 6, COLORS.red);
+        });
+      }
+      return;
+    }
+
     const hw = this.w / 2, hh = this.h / 2;
     const x = Math.round(this.x - hw), y = Math.round(this.y - hh);
     const hull = flash ? COLORS.white : '#2a3560';

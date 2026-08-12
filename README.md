@@ -51,7 +51,8 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
 ## Gameplay
 
 - **Boost economy** — holding up drains the gauge and accelerates the scroll;
-  it refills when you ease off (faster if you throttle down).
+  it refills when you ease off (faster if you throttle down). The sea visibly
+  whips up — more whitecaps and speed streaks — the faster you go.
 - **Weapons** — machine guns fire continuously and the ammo bar refills
   automatically; blue `W` pickups grant a temporary 3-way (and, stacked, 5-way)
   spread. `Shift` launches homing missiles that re-acquire a new target if
@@ -88,6 +89,9 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
 ├── index.html            entry point + <script type="importmap"> ("#game/" → "./js/")
 ├── css/
 │   └── style.css         page styling, canvas centring, aspect-ratio box, CRT vignette
+├── assets/
+│   ├── ASSET_GUIDE.md    how to author replacement PNGs (sizes, pivots, tiling)
+│   └── manifest.js       optional PNG list — every entry falls back to pixel art
 └── js/
     ├── main.js           game loop, delta time, state machine, wave director,
     │                     scoring/combo economy, central collision dispatch
@@ -103,6 +107,7 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
     ├── Collision.js      pure AABB / circle / MTV helpers (no state, no imports)
     ├── UIManager.js      HUD, banners, boss bar, menu / pause / game-over, CRT pass
     ├── Sprite.js         pixel-matrix renderer + shared sprite data
+    ├── Assets.js         PNG registry — swaps generated art for images
     └── Sound.js          Web Audio SFX + bass sequencer, fully procedural
 ```
 
@@ -133,3 +138,34 @@ and a CRT scanline + rolling-refresh-band overlay.
 Nearly everything interesting lives in `js/config.js` — `PLAYER`, `WORLD`,
 `WEAPONS`, `ENEMY`, `RULES` and the `COLORS` palette. The wave composition
 table is at the top of `js/main.js`.
+
+---
+
+## Replacing the artwork with PNGs
+
+Every graphic in the game — player, enemies, bullets, pickups, obstacles, the
+water itself — can be replaced with your own PNGs **without touching any
+gameplay code**. The HUD/GUI is intentionally excluded and stays vector-drawn.
+
+```
+assets/
+├── ASSET_GUIDE.md   ← full spec: sizes, pivots, frame strips, seamless tiling
+├── manifest.js      ← the list of overridable keys
+├── player/  enemies/  bullets/  pickups/  world/  water/  fx/
+```
+
+Drop a correctly-named PNG into the matching folder and reload — that sprite is
+now yours. Anything you *don't* provide keeps using the built-in procedural
+pixel art, so a partial art pack is perfectly valid. Missing or broken files
+are non-fatal by design.
+
+Read **[`assets/ASSET_GUIDE.md`](assets/ASSET_GUIDE.md)** for exact frame
+sizes, pivots, animation-strip layout, the palette, and how to make the water
+textures tile seamlessly.
+
+Debug helpers in the browser console:
+
+```js
+__art.setEnabled(false);  // force procedural art, ignoring PNGs
+__art.failed;             // keys whose files didn't load
+```

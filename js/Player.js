@@ -12,6 +12,7 @@ import {
   SPR_PLAYER, PAL_PLAYER, PAL_PLAYER_HIT, drawMatrix, drawMatrixFlat, glow, px,
 } from '#game/Sprite.js';
 import { sfx } from '#game/Sound.js';
+import { art } from '#game/Assets.js';
 
 export class Player {
   /**
@@ -178,23 +179,32 @@ export class Player {
     // Boost thruster plume behind the hull.
     if (this.throttle > 0.02) {
       const len = 10 + this.throttle * 26 + Math.sin(this.bob * 4) * 4;
-      glow(ctx, COLORS.cyan, 12, () => {
-        px(ctx, -4, this.h / 2 - 4, 8, len, COLORS.cyan);
-        px(ctx, -2, this.h / 2 - 4, 4, len * 1.25, COLORS.white);
-      });
+      const frame = Math.floor(this.bob * 12) % 4;
+      if (!art.draw(ctx, 'player.thruster', 0, this.h / 2 - 4, {
+        frame, alpha: clamp(this.throttle * 1.2, 0, 1),
+      })) {
+        glow(ctx, COLORS.cyan, 12, () => {
+          px(ctx, -4, this.h / 2 - 4, 8, len, COLORS.cyan);
+          px(ctx, -2, this.h / 2 - 4, 4, len * 1.25, COLORS.white);
+        });
+      }
     }
 
-    // Hull.
-    if (this.hitFlash > 0) {
-      drawMatrixFlat(ctx, SPR_PLAYER, 0, 0, scale, COLORS.white);
-    } else {
-      drawMatrix(ctx, SPR_PLAYER, this.invuln > 0 ? PAL_PLAYER_HIT : PAL_PLAYER, 0, 0, scale);
-    }
+    // Hull — PNG art when available, procedural matrix otherwise.
+    // Frame 0 = level, 1 = banking left, 2 = banking right.
+    const frame = this.bank < -0.35 ? 1 : this.bank > 0.35 ? 2 : 0;
+    if (!art.draw(ctx, 'player.hull', 0, 0, { frame, alpha: this.hitFlash > 0 ? 0.6 : 1 })) {
+      if (this.hitFlash > 0) {
+        drawMatrixFlat(ctx, SPR_PLAYER, 0, 0, scale, COLORS.white);
+      } else {
+        drawMatrix(ctx, SPR_PLAYER, this.invuln > 0 ? PAL_PLAYER_HIT : PAL_PLAYER, 0, 0, scale);
+      }
 
-    // Hydrofoil struts that flex with the bank.
-    const foil = this.bank * 3;
-    px(ctx, -14, 6 + foil, 6, 3, COLORS.cyanDim);
-    px(ctx, 8, 6 - foil, 6, 3, COLORS.cyanDim);
+      // Hydrofoil struts that flex with the bank (procedural art only).
+      const foil = this.bank * 3;
+      px(ctx, -14, 6 + foil, 6, 3, COLORS.cyanDim);
+      px(ctx, 8, 6 - foil, 6, 3, COLORS.cyanDim);
+    }
 
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -202,12 +212,15 @@ export class Player {
     // Shield bubble.
     if (this.shield > 0) {
       const a = this.shield < 2 ? (Math.floor(this.shield * 10) % 2 ? 0.25 : 0.6) : 0.5;
-      ctx.globalAlpha = a;
-      ctx.strokeStyle = COLORS.cyan;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 28 + Math.sin(this.bob * 2) * 2, 0, Math.PI * 2);
-      ctx.stroke();
+      const sf = Math.floor(this.bob * 6) % 4;
+      if (!art.draw(ctx, 'player.shield', cx, cy, { frame: sf, alpha: a })) {
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = COLORS.cyan;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 28 + Math.sin(this.bob * 2) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.globalAlpha = 1;
     }
   }

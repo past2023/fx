@@ -12,14 +12,39 @@ export const GAME_H = 720;
 /** 1 "art pixel" = PX screen pixels inside the 480x720 buffer. */
 export const PX = 4;
 
-/** Cyberpunk / neon-ocean palette. */
+/**
+ * Y of the waterline. Everything above is sky/skyline, everything below is
+ * ocean. The water depth ramp and wave perspective are both derived from it.
+ */
+export const HORIZON = 96;
+
+/**
+ * Cyberpunk / neon-ocean palette.
+ *
+ * The water ramp runs from `seaFar` (bright teal at the horizon) down to
+ * `seaDeep` (near-black blue at the bottom of the screen). Foam is a warm
+ * white so it reads as spray against every blue in the ramp.
+ */
 export const COLORS = Object.freeze({
   navy:      '#0a0f24',
   navyDeep:  '#060a18',
-  water0:    '#0b1330',
-  water1:    '#0e1a40',
-  water2:    '#122250',
-  foam:      '#4de1ff',
+
+  // --- ocean ramp (far → near) ---
+  seaFar:    '#1a7fa8',
+  seaMid:    '#106080',
+  seaBase:   '#0a4664',
+  seaDeep:   '#06304a',
+  seaAbyss:  '#04203a',
+  // --- wave crests & foam ---
+  crestHi:   '#38b6d8',
+  crest:     '#2091b8',
+  foamEdge:  '#9fe8ff',
+  foam:      '#e8fbff',
+  foamSoft:  '#bfeeff',
+
+  water0:    '#0a4664',
+  water1:    '#106080',
+  water2:    '#1a7fa8',
   cyan:      '#00f0ff',
   cyanDim:   '#0aa6bd',
   magenta:   '#ff00a0',

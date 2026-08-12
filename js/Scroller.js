@@ -10,10 +10,45 @@
  */
 
 import {
-  GAME_W, GAME_H, WORLD, COLORS, PX, rand, randInt, clamp, damp, pick,
+  GAME_W, GAME_H, HORIZON, WORLD, COLORS, PX, rand, randInt, clamp, damp, pick,
 } from '#game/config.js';
 import { SPR_MINE, PAL_MINE, drawMatrix, drawMatrixFlat, px, glow } from '#game/Sprite.js';
+import { art } from '#game/Assets.js';
 import { sfx } from '#game/Sound.js';
+
+
+/**
+ * Cheap deterministic hash → [0,1). Used for stable procedural scatter that
+ * scrolls with the water instead of flickering every frame.
+ * @param {number} n
+ * @returns {number}
+ */
+function hash(n) {
+  const s = Math.sin(n) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/**
+ * '#rrggbb' → [r,g,b].
+ * @param {string} hex
+ * @returns {number[]}
+ */
+function hexToRgb(hex) {
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+
+/**
+ * Blend two rgb triplets into a CSS colour string.
+ * @param {number[]} a @param {number[]} b @param {number} t
+ * @returns {string}
+ */
+function mixRgb(a, b, t) {
+  const r = Math.round(a[0] + (b[0] - a[0]) * t);
+  const g = Math.round(a[1] + (b[1] - a[1]) * t);
+  const bl = Math.round(a[2] + (b[2] - a[2]) * t);
+  return `rgb(${r},${g},${bl})`;
+}
 
 /* ------------------------------------------------------------------ */
 /* Obstacles                                                           */
@@ -62,8 +97,10 @@ export class Mine {
     glow(ctx, COLORS.red, 6 + pulse * 8, () => {
       px(ctx, this.x - 3, this.y - 3, 6, 6, COLORS.red);
     });
-    if (this.flash > 0) drawMatrixFlat(ctx, SPR_MINE, this.x, this.y, 3.5, COLORS.white);
-    else drawMatrix(ctx, SPR_MINE, PAL_MINE, this.x, this.y, 3.5);
+    if (!art.draw(ctx, 'obstacle.mine', this.x, this.y, { frame: pulse > 0.5 ? 1 : 0 })) {
+      if (this.flash > 0) drawMatrixFlat(ctx, SPR_MINE, this.x, this.y, 3.5, COLORS.white);
+      else drawMatrix(ctx, SPR_MINE, PAL_MINE, this.x, this.y, 3.5);
+    }
     ctx.globalAlpha = 0.25;
     px(ctx, this.x - 12, this.y + 14, 24, 4, '#000');
     ctx.globalAlpha = 1;
@@ -98,6 +135,7 @@ export class Island {
   }
 
   draw(ctx) {
+    if (art.draw(ctx, 'obstacle.island', this.x, this.y)) return;
     const x0 = this.x - this.w / 2;
     const base = this.y + this.h / 2;
     // Foam ring.
@@ -161,6 +199,9 @@ export class Whirlpool {
   }
 
   draw(ctx) {
+    if (art.draw(ctx, 'obstacle.whirlpool', this.x, this.y, {
+      frame: Math.floor(this.age * 12) % 8, rot: this.age * 0.6,
+    })) return;
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(this.y));
     ctx.globalAlpha = 0.55;
@@ -281,57 +322,288 @@ export class Scroller {
 
   /* ---------------- rendering ---------------- */
 
-  /** Water + parallax waves. Drawn before everything else. */
+  /**
+   * Water + parallax waves. Drawn before everything else.
+   *
+   * Layering, back to front:
+   *   1. depth ramp      — banded ocean-blue gradient, teal far → dark near
+   *   2. sky + skyline   — sunset band and the neon city on the horizon
+   *   3. sun glitter      — reflected highlight column on the water
+   *   4. swell layers     — 3 parallax rows of rolling wave bodies
+   *   5. foam crests      — white caps riding the nearest swells
+   *   6. speed streaks    — velocity cue while boosting
+   *
+   * If `ART.water` textures are supplied, tiled PNG layers replace steps
+   * 1/4/5 automatically (see assets/ASSET_GUIDE.md).
+   */
   drawBackground(ctx) {
-    // Base gradient (cheap: three bands, no createLinearGradient churn).
-    ctx.fillStyle = COLORS.navyDeep;
-    ctx.fillRect(0, 0, GAME_W, GAME_H);
-    ctx.fillStyle = COLORS.water0;
-    ctx.fillRect(0, 90, GAME_W, GAME_H - 90);
+    // If a full water texture set is loaded, use the image pipeline instead.
+    if (art.hasWater()) { this.drawBackgroundTextured(ctx); return; }
 
-    // Horizon glow band.
-    const g = ctx.createLinearGradient(0, 0, 0, 150);
-    g.addColorStop(0, '#1a0f3a');
-    g.addColorStop(0.55, '#3a1160');
-    g.addColorStop(1, COLORS.water0);
+    /* 1. Depth ramp -------------------------------------------------- */
+    this.drawDepthRamp(ctx);
+
+    /* 2. Sky + skyline ------------------------------------------------ */
+    const g = ctx.createLinearGradient(0, 0, 0, HORIZON + 8);
+    g.addColorStop(0, '#241046');
+    g.addColorStop(0.5, '#5c1a63');
+    g.addColorStop(0.82, '#a8365e');
+    g.addColorStop(1, COLORS.seaFar);
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, GAME_W, 150);
-
-    // Distant neon skyline.
+    ctx.fillRect(0, 0, GAME_W, HORIZON + 8);
     this.drawSkyline(ctx);
 
-    // Parallax wave layers: rows of dashes sliding at different speeds.
-    const layerColors = ['#12204a', '#173066', COLORS.cyanDim];
-    for (let l = 0; l < 3; l++) {
-      const off = this.layers[l];
-      const step = 64 - l * 12;
-      const alpha = 0.25 + l * 0.16;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = layerColors[l];
-      const size = 2 + l;
-      for (let y = -step + (off % step); y < GAME_H; y += step) {
-        if (y < 96) continue;
-        const phase = (y * 0.09 + this.distance * 0.004 * (l + 1) + this.waveSeedOffset);
-        for (let x = -20; x < GAME_W + 20; x += 26 + l * 6) {
-          const wob = Math.sin(phase + x * 0.05) * (6 + l * 5);
-          ctx.fillRect(Math.round(x + wob), Math.round(y), 14 + l * 5, size);
+    /* 3. Sun glitter on the water ------------------------------------ */
+    this.drawGlitter(ctx);
+
+    /* 4. Swell layers ------------------------------------------------- */
+    this.drawSwells(ctx);
+
+    /* 5. Foam crests --------------------------------------------------- */
+    this.drawCrests(ctx);
+
+    /* 6. Speed streaks ------------------------------------------------- */
+    const spd = clamp((this.scroll - WORLD.baseScroll) / (WORLD.boostScroll - WORLD.baseScroll), 0, 1);
+    if (spd > 0.05) {
+      ctx.globalAlpha = 0.1 + spd * 0.2;
+      ctx.fillStyle = COLORS.foamSoft;
+      for (let i = 0; i < 22; i++) {
+        const x = ((i * 97 + this.waveSeedOffset * 13) % GAME_W);
+        const y = ((i * 251 + this.distance * 1.6) % (GAME_H + 200)) - 100;
+        if (y < HORIZON) continue;
+        ctx.fillRect(Math.round(x), Math.round(y), 2, 20 + spd * 44);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /**
+   * Banded ocean depth gradient. Bright teal at the horizon fading to a deep
+   * blue at the player, drawn as discrete bands to stay pixel-art honest.
+   */
+  drawDepthRamp(ctx) {
+    ctx.fillStyle = COLORS.seaAbyss;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    // Band colours are identical every frame, so build them once.
+    if (!this._rampBands) {
+      const stops = [COLORS.seaFar, COLORS.seaMid, COLORS.seaBase, COLORS.seaDeep, COLORS.seaAbyss]
+        .map(hexToRgb);
+      const bands = 40;
+      this._rampBands = [];
+      for (let i = 0; i < bands; i++) {
+        const t = i / (bands - 1);
+        // Ease so the bright water near the horizon holds a little longer.
+        const e = Math.pow(t, 0.8) * (stops.length - 1);
+        const idx = Math.min(stops.length - 2, Math.floor(e));
+        this._rampBands.push(mixRgb(stops[idx], stops[idx + 1], e - idx));
+      }
+    }
+
+    // The ramp never changes, so bake it into an offscreen canvas once and
+    // blit it as a single drawImage each frame.
+    if (!this._rampCanvas && typeof document !== 'undefined' && document.createElement) {
+      const top = HORIZON;
+      const bands = this._rampBands;
+      const bandH = Math.ceil((GAME_H - top) / bands.length);
+      const c = document.createElement('canvas');
+      c.width = GAME_W; c.height = GAME_H;
+      const cx = c.getContext('2d');
+      cx.fillStyle = COLORS.seaAbyss;
+      cx.fillRect(0, 0, GAME_W, GAME_H);
+      for (let i = 0; i < bands.length; i++) {
+        cx.fillStyle = bands[i];
+        cx.fillRect(0, Math.round(top + i * bandH), GAME_W, bandH + 1);
+      }
+      this._rampCanvas = c;
+    }
+    if (this._rampCanvas) { ctx.drawImage(this._rampCanvas, 0, 0); return; }
+
+    // Fallback (no DOM, e.g. headless tests): draw the bands directly.
+    const top = HORIZON;
+    const bands = this._rampBands;
+    const bandH = Math.ceil((GAME_H - top) / bands.length);
+    for (let i = 0; i < bands.length; i++) {
+      ctx.fillStyle = bands[i];
+      ctx.fillRect(0, Math.round(top + i * bandH), GAME_W, bandH + 1);
+    }
+  }
+
+  /**
+   * Shimmering sun reflection. Scattered specular dashes concentrated in a
+   * soft column under the sun — deliberately irregular so it never reads as
+   * a road or a repeating pattern.
+   */
+  drawGlitter(ctx) {
+    const cx = GAME_W * 0.5 + Math.sin(this.distance * 0.0006) * 50;
+    ctx.save();
+    ctx.fillStyle = COLORS.foamEdge;
+    // Deterministic hash keyed on a scrolling row index, so specks drift with
+    // the water instead of flickering in place.
+    const rowH = 7;
+    const scrollRows = Math.floor(this.distance / rowH);
+    const rows = Math.ceil((GAME_H - HORIZON) / rowH);
+    for (let r = 0; r < rows; r++) {
+      const y = HORIZON + r * rowH + (this.distance % rowH);
+      if (y < HORIZON || y > GAME_H) continue;
+      const depth = (y - HORIZON) / (GAME_H - HORIZON);
+      const id = r + scrollRows;
+      const spread = 30 + depth * 210;
+      const count = 2 + (hash(id * 3.7) * 3 | 0);
+      for (let k = 0; k < count; k++) {
+        const h1 = hash(id * 12.9 + k * 78.2);
+        const h2 = hash(id * 4.1 + k * 33.7);
+        // Bias specks toward the column centre (h1 pushed through a cube).
+        const t = (h1 * 2 - 1);
+        const x = cx + t * Math.abs(t) * spread;
+        const a = (0.5 - depth * 0.34) * (0.35 + h2 * 0.65);
+        if (a <= 0.03) continue;
+        const w = Math.max(2, (3 + h2 * 9) * (1 - depth * 0.45));
+        ctx.globalAlpha = a;
+        ctx.fillRect(Math.round(x - w / 2), Math.round(y), Math.round(w), 2);
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Three parallax layers of rolling swells. Each swell is a shallow arc of
+   * pixels: a darker trough body with a lighter top edge, so the ocean reads
+   * as moving water volume rather than flat stripes.
+   */
+  drawSwells(ctx) {
+    const layers = [
+      { step: 78, amp: 10, body: COLORS.seaDeep, lip: COLORS.seaBase, alpha: 0.55, len: 90,  h: 6, wl: 150 },
+      { step: 62, amp: 13, body: COLORS.seaBase, lip: COLORS.crest,   alpha: 0.6,  len: 120, h: 8, wl: 190 },
+      { step: 50, amp: 17, body: COLORS.seaMid,  lip: COLORS.crestHi, alpha: 0.65, len: 160, h: 10, wl: 240 },
+    ];
+
+    for (let l = 0; l < layers.length; l++) {
+      const L = layers[l];
+      const off = ((this.layers[l] % L.step) + L.step) % L.step;
+      const rowIndex = Math.floor(this.layers[l] / L.step);
+      for (let i = -1; (HORIZON - L.step + off + i * L.step) < GAME_H + L.step; i++) {
+        const baseY = HORIZON - L.step + off + i * L.step;
+        if (baseY < HORIZON - L.step) continue;
+        const depth = clamp((baseY - HORIZON) / (GAME_H - HORIZON), 0, 1);
+        if (depth < -0.1) continue;
+        // Perspective: waves are small and tight near the horizon.
+        const persp = 0.22 + depth * 0.78;
+        const id = rowIndex - i + l * 101;
+        // Each swell is a run of segments following a sine, so it reads as a
+        // continuous rolling crest rather than a dotted line.
+        const runs = 1 + (hash(id * 5.3) * 2 | 0);
+        for (let r = 0; r < runs; r++) {
+          const h1 = hash(id * 9.1 + r * 41.7);
+          const runW = (L.len * (0.5 + h1)) * persp;
+          const startX = -60 + hash(id * 2.7 + r * 17.3) * (GAME_W + 120);
+          const phase = hash(id * 7.7 + r * 3.1) * Math.PI * 2;
+          const amp = L.amp * persp;
+          const hh = Math.max(2, Math.round(L.h * persp));
+          const seg = Math.max(3, Math.round(7 * persp));
+          for (let x = startX; x < startX + runW; x += seg) {
+            if (x < -seg || x > GAME_W) continue;
+            const u = (x - startX) / runW;                 // 0..1 along the crest
+            // Taper the ends so crests fade in/out instead of cutting off.
+            const taper = Math.sin(clamp(u, 0, 1) * Math.PI);
+            if (taper < 0.12) continue;
+            const yy = baseY + Math.sin(phase + (x / L.wl) * Math.PI * 2) * amp;
+            const bh = Math.max(2, Math.round(hh * taper));
+            ctx.globalAlpha = L.alpha * taper;
+            ctx.fillStyle = L.body;
+            ctx.fillRect(Math.round(x), Math.round(yy), seg + 1, bh);
+            // Bright lip sits on the leading (upper) edge of the swell.
+            ctx.globalAlpha = L.alpha * taper * 0.95;
+            ctx.fillStyle = L.lip;
+            ctx.fillRect(Math.round(x), Math.round(yy) - 1, seg + 1, Math.max(1, Math.round(bh * 0.45)));
+          }
         }
       }
     }
     ctx.globalAlpha = 1;
+  }
 
-    // Moving speed streaks while fast (sells velocity).
+  /**
+   * White foam caps. Sparse near the horizon, chunkier near the player, and
+   * noticeably more frequent at speed — the sea "whips up" when you boost.
+   */
+  drawCrests(ctx) {
     const spd = clamp((this.scroll - WORLD.baseScroll) / (WORLD.boostScroll - WORLD.baseScroll), 0, 1);
-    if (spd > 0.05) {
-      ctx.globalAlpha = 0.13 + spd * 0.22;
-      ctx.fillStyle = COLORS.foam;
-      for (let i = 0; i < 22; i++) {
-        const x = ((i * 97 + this.waveSeedOffset * 13) % GAME_W);
-        const y = ((i * 251 + this.distance * 1.6) % (GAME_H + 200)) - 100;
-        ctx.fillRect(Math.round(x), Math.round(y), 2, 24 + spd * 46);
+    const step = 54;
+    const off = ((this.layers[2] % step) + step) % step;
+    const rowIndex = Math.floor(this.layers[2] / step);
+    const wl = 240;
+
+    ctx.save();
+    for (let i = -1; (HORIZON - step + off + i * step) < GAME_H + step; i++) {
+      const baseY = HORIZON - step + off + i * step;
+      if (baseY < HORIZON - 6) continue;
+      const depth = clamp((baseY - HORIZON) / (GAME_H - HORIZON), 0, 1);
+      const persp = 0.25 + depth * 0.75;
+      const id = rowIndex - i;
+
+      // A couple of whitecaps per row; more of them the faster you go.
+      const caps = 1 + (hash(id * 6.1) * 3 | 0) + (spd > 0.4 ? 1 : 0);
+      for (let c = 0; c < caps; c++) {
+        const h1 = hash(id * 15.7 + c * 61.3);
+        const h2 = hash(id * 23.9 + c * 12.1);
+        if (h2 < 0.34 - spd * 0.22 - depth * 0.12) continue;
+
+        const capW = (26 + h1 * 54) * persp;
+        const startX = -40 + h1 * (GAME_W + 80);
+        const phase = hash(id * 3.3 + c * 8.9) * Math.PI * 2;
+        const amp = 17 * persp;
+        const seg = Math.max(3, Math.round(6 * persp));
+        const thick = Math.max(2, Math.round(5 * persp));
+
+        for (let x = startX; x < startX + capW; x += seg) {
+          if (x < -seg || x > GAME_W) continue;
+          const u = (x - startX) / capW;
+          const taper = Math.sin(clamp(u, 0, 1) * Math.PI);
+          if (taper < 0.15) continue;
+          const yy = baseY + Math.sin(phase + (x / wl) * Math.PI * 2) * amp;
+          const a = (0.45 + depth * 0.5) * taper;
+
+          // Soft under-foam, bright core, and a spray wisp trailing behind.
+          ctx.globalAlpha = a * 0.55;
+          ctx.fillStyle = COLORS.foamSoft;
+          ctx.fillRect(Math.round(x), Math.round(yy), seg + 1, thick + 1);
+          ctx.globalAlpha = a;
+          ctx.fillStyle = COLORS.foam;
+          ctx.fillRect(Math.round(x), Math.round(yy) - 1, seg + 1, Math.max(1, thick - 1));
+          if (taper > 0.55 && hash(id * 31.1 + x) > 0.55) {
+            ctx.globalAlpha = a * 0.4;
+            ctx.fillStyle = COLORS.foamEdge;
+            ctx.fillRect(Math.round(x), Math.round(yy) + thick + 1, Math.max(2, seg - 1), 2);
+          }
+        }
       }
-      ctx.globalAlpha = 1;
     }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Texture-driven variant of `drawBackground`, used automatically once
+   * water PNGs are registered. Tiles each layer vertically with its own
+   * parallax offset.
+   */
+  drawBackgroundTextured(ctx) {
+    const sky = art.get('water.sky');
+    if (sky) ctx.drawImage(sky, 0, 0, GAME_W, HORIZON + 8);
+    else { this.drawDepthRamp(ctx); }
+
+    const deep = art.get('water.deep');
+    if (deep) art.tileY(ctx, deep, this.layers[0], HORIZON, GAME_H);
+    else this.drawDepthRamp(ctx);
+
+    this.drawSkyline(ctx);
+
+    const mid = art.get('water.waves');
+    if (mid) art.tileY(ctx, mid, this.layers[1], HORIZON, GAME_H, 0.85);
+    const foam = art.get('water.foam');
+    if (foam) art.tileY(ctx, foam, this.layers[2], HORIZON, GAME_H, 0.9);
   }
 
   /** Simple procedural skyline on the horizon. */
@@ -375,6 +647,8 @@ export class Scroller {
       ctx.globalAlpha = 0.35;
       px(ctx, x - 10, y + 10, 20, 5, '#000');
       ctx.globalAlpha = 1;
+      const bkey = b.side ? 'world.buoyGreen' : 'world.buoyRed';
+      if (art.draw(ctx, bkey, x, y, { frame: Math.floor(this.distance * 0.05 + b.y) % 2 })) continue;
       px(ctx, x - 7, y - 2, 14, 14, '#1b2545');
       px(ctx, x - 5, y, 10, 10, c);
       px(ctx, x - 2, y - 14, 4, 14, COLORS.grey);

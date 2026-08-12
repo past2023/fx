@@ -10,6 +10,7 @@
 
 import { GAME_W, GAME_H, COLORS, WEAPONS, angleDelta, clamp } from '#game/config.js';
 import { px, glow } from '#game/Sprite.js';
+import { art } from '#game/Assets.js';
 
 export class Bullet {
   constructor() { this.dead = true; }
@@ -114,6 +115,20 @@ export class Bullet {
 
   /** @param {CanvasRenderingContext2D} ctx */
   draw(ctx) {
+    // PNG path: one key per projectile kind. Missiles/bombs rotate to face
+    // travel; the art should point UP (missile) or be radial (bomb/orb).
+    const artKey = this.kind === 'missile' ? 'bullet.missile'
+      : this.kind === 'bomb' ? 'bullet.bomb'
+        : this.kind === 'enemy' ? 'bullet.enemy'
+          : this.color === COLORS.yellow ? 'bullet.spread' : 'bullet.gun';
+    if (art.has(artKey)) {
+      const rot = this.kind === 'missile' ? this.angle + Math.PI / 2
+        : this.kind === 'bomb' ? this.angle : 0;
+      const frame = Math.floor(this.age * 16) % 2;
+      art.draw(ctx, artKey, this.x, this.y, { rot, frame });
+      return;
+    }
+
     switch (this.kind) {
       case 'missile': {
         ctx.save();

@@ -15,14 +15,15 @@
 import { GAME_H, COLORS, rand, clamp } from '#game/config.js';
 import { px, pxBorder, glow } from '#game/Sprite.js';
 import { sfx } from '#game/Sound.js';
+import { art } from '#game/Assets.js';
 
 /** Type table: colour, HUD label and the effect applied on collection. */
 const TYPES = {
-  spread:  { color: COLORS.cyan,    label: 'SPREAD',  glyph: 'W' },
-  missile: { color: COLORS.red,     label: 'MISSILE', glyph: 'M' },
-  ammo:    { color: COLORS.yellow,  label: 'AMMO',    glyph: 'A' },
-  life:    { color: COLORS.green,   label: '1UP',     glyph: '+' },
-  shield:  { color: COLORS.white,   label: 'SHIELD',  glyph: 'S' },
+  spread:  { color: COLORS.cyan,    label: 'SPREAD',  glyph: 'W', art: 'pickup.spread' },
+  missile: { color: COLORS.red,     label: 'MISSILE', glyph: 'M', art: 'pickup.missile' },
+  ammo:    { color: COLORS.yellow,  label: 'AMMO',    glyph: 'A', art: 'pickup.ammo' },
+  life:    { color: COLORS.green,   label: '1UP',     glyph: '+', art: 'pickup.life' },
+  shield:  { color: COLORS.white,   label: 'SHIELD',  glyph: 'S', art: 'pickup.shield' },
 };
 
 export class PowerUp {
@@ -108,6 +109,22 @@ export class PowerUp {
     const w = clamp(this.w * (0.35 + squash * 0.65), 6, this.w);
     const cx = Math.round(this.x), cy = Math.round(this.y + bob);
     const c = this.def.color;
+
+    // PNG path: an 8-frame spin strip replaces the procedural squash cube.
+    if (art.has(this.def.art)) {
+      const frame = Math.floor(this.age * 10) % 8;
+      art.draw(ctx, this.def.art, cx, cy, { frame });
+      if (this.magnet) {
+        ctx.globalAlpha = 0.4;
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18 + Math.sin(this.age * 12) * 3, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      return;
+    }
 
     glow(ctx, c, 12 + Math.sin(this.age * 6) * 4, () => {
       px(ctx, cx - w / 2, cy - this.h / 2, w, this.h, c);

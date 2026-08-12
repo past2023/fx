@@ -17,6 +17,7 @@ import {
   clamp, rand, randInt, pick, lerp,
 } from '#game/config.js';
 import { input } from '#game/Input.js';
+import { art } from '#game/Assets.js';
 import { sfx } from '#game/Sound.js';
 import { ParticleSystem } from '#game/Particle.js';
 import { BulletPool } from '#game/Bullet.js';
@@ -725,13 +726,40 @@ class Game {
 
 /**
  * Entry point called from index.html.
+ *
+ * Optional PNG assets are loaded first, but the loop starts regardless: a
+ * missing or partial asset pack just means the procedural pixel art is used.
+ *
  * @param {HTMLCanvasElement} canvas
  * @returns {Game} the running game instance (handy for debugging)
  */
 export function boot(canvas) {
   const game = new Game(canvas);
   game.start();
+
+  // Fire-and-forget: swap in artwork whenever it finishes loading.
+  loadOptionalArt();
+
   // Expose for console tinkering without polluting module scope.
   window.__neonwake = game;
+  window.__art = art;
   return game;
+}
+
+/**
+ * Try to load `assets/manifest.js` and any PNGs it lists. Entirely optional —
+ * every failure path leaves the game running on generated art.
+ */
+async function loadOptionalArt() {
+  try {
+    const mod = await import('../assets/manifest.js');
+    const manifest = mod.MANIFEST || mod.default;
+    if (!Array.isArray(manifest) || !manifest.length) return;
+    const res = await art.load(manifest);
+    if (res.loaded > 0) {
+      console.info(`[NEON WAKE] art pack: ${res.loaded}/${res.total} textures loaded.`);
+    }
+  } catch {
+    // No manifest, or it failed to parse — procedural art it is.
+  }
 }
