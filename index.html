@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>NEON WAKE // Hydrofoil Assault</title>
+<link rel="stylesheet" href="./css/style.css" />
+
+<!--
+  Import map: lets every module import siblings through the "#game/" prefix
+  instead of brittle relative paths. Native browser feature, no bundler.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "#game/": "./js/"
+  }
+}
+</script>
+</head>
+<body>
+  <div id="frame">
+    <canvas id="game" width="480" height="720" aria-label="Neon Wake game canvas"></canvas>
+    <div id="crt"></div>
+  </div>
+
+  <p id="hint">
+    ARROWS / WASD move &nbsp;•&nbsp; UP = BOOST &nbsp;•&nbsp; SPACE = GUNS &nbsp;•&nbsp; SHIFT = MISSILE &nbsp;•&nbsp; P = PAUSE &nbsp;•&nbsp; M = MUTE
+  </p>
+
+  <!-- Shown only if the ES modules fail to load (usually the file:// case). -->
+  <div id="fatal" hidden>
+    <h2>MODULES BLOCKED</h2>
+    <p>
+      ES modules can't be loaded straight from <code>file://</code> because of
+      browser CORS rules. Serve the folder over HTTP instead:
+    </p>
+    <pre>python3 -m http.server 8000</pre>
+    <p>then open <code>http://localhost:8000</code> (or use VS Code "Live Server").</p>
+    <p id="fatal-detail"></p>
+  </div>
+
+  <script type="module">
+    import { boot } from '#game/main.js';
+    boot(document.getElementById('game'));
+    window.__gameLoaded = true;
+  </script>
+
+  <script>
+    // Fallback notice: if the module above never executed, explain why.
+    window.addEventListener('load', () => {
+      if (window.__gameLoaded) return;
+      const el = document.getElementById('fatal');
+      if (!el) return;
+      el.hidden = false;
+      document.getElementById('frame').style.display = 'none';
+      const d = document.getElementById('fatal-detail');
+      if (location.protocol === 'file:') {
+        d.textContent = 'Detected protocol: file://';
+      } else {
+        d.textContent = 'Check the browser console for the underlying error.';
+      }
+    });
+  </script>
+</body>
+</html>
