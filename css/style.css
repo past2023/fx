@@ -1,0 +1,101 @@
+/* File: css/style.css
+   Page chrome only — everything inside the canvas is drawn in JS. */
+
+:root {
+  --navy: #0a0f24;
+  --deep: #04060f;
+  --cyan: #00f0ff;
+  --magenta: #ff00a0;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--deep);
+  background-image:
+    radial-gradient(circle at 50% 18%, #131f4a 0%, #080d20 45%, #03060f 100%);
+  color: #7fe9ff;
+  font-family: "Courier New", ui-monospace, monospace;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+}
+
+/* Frame keeps the 480x720 aspect ratio and hosts the CRT overlay. */
+#frame {
+  position: relative;
+  height: min(calc(100vh - 60px), calc((100vw - 20px) * 720 / 480));
+  aspect-ratio: 480 / 720;
+  border: 2px solid #1d2b55;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 4px #070b18,
+    0 0 26px rgba(0, 240, 255, 0.22),
+    0 0 70px rgba(255, 0, 160, 0.14);
+  overflow: hidden;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--navy);
+  /* Crisp pixels, no smoothing when upscaled. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Subtle CSS half of the CRT look (curvature glow + vignette).
+   The scanlines themselves are drawn in UIManager so they stay pixel-locked. */
+#crt {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+  mix-blend-mode: multiply;
+}
+
+#hint {
+  margin: 0;
+  font-size: clamp(8px, 1.6vw, 12px);
+  letter-spacing: 1px;
+  color: #3f6ea8;
+  text-align: center;
+  user-select: none;
+}
+
+@media (max-height: 520px) {
+  #hint { display: none; }
+  #frame { height: calc(100vh - 20px); }
+}
+
+/* Fallback panel shown when ES modules can't load (file:// protocol). */
+#fatal {
+  max-width: 520px;
+  padding: 20px 24px;
+  border: 2px solid var(--magenta);
+  border-radius: 6px;
+  background: #0b0f22;
+  color: #cfe9ff;
+  font-size: 14px;
+  line-height: 1.5;
+}
+#fatal h2 { margin: 0 0 10px; color: var(--magenta); letter-spacing: 3px; }
+#fatal code, #fatal pre {
+  background: #060a18;
+  color: var(--cyan);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+#fatal pre { padding: 10px 12px; overflow-x: auto; }
