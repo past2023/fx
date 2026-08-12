@@ -34,21 +34,6 @@ import { RescueManager } from '#game/Rescue.js';
 import { RivalManager } from '#game/Rival.js';
 import { Course } from '#game/Course.js';
 
-/**
- * Wave composition tables — index is clamped to the last entry.
- * `rate` is the average gap in seconds between spawns; waves are tuned so
- * the lane is never empty for more than a couple of seconds.
- */
-const WAVE_TABLE = [
-  { grunt: 8,  jetski: 2,  helicopter: 0, rate: 1.05 },
-  { grunt: 10, jetski: 5,  helicopter: 1, rate: 0.95 },
-  { grunt: 12, jetski: 7,  helicopter: 2, rate: 0.85 },
-  { grunt: 13, jetski: 9,  helicopter: 3, rate: 0.78 },
-  { grunt: 15, jetski: 11, helicopter: 4, rate: 0.7 },
-  { grunt: 17, jetski: 13, helicopter: 5, rate: 0.63 },
-  { grunt: 20, jetski: 16, helicopter: 6, rate: 0.55 },
-];
-
 class Game {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -122,7 +107,6 @@ class Game {
     this.wave = 0;
     this.waveTimer = 0;
     this.spawnTimer = 1.2;
-    this.spawnQueue = [];
     this.boss = null;
     this.bossPending = false;
     this.bossTimer = 0;
@@ -228,61 +212,6 @@ class Game {
   /* ------------------------------------------------------------------ */
   /* Wave director                                                      */
   /* ------------------------------------------------------------------ */
-
-  /**
-   * Begin wave `n`. Every RULES.bossEvery-th wave spawns the destroyer.
-   * @param {number} n
-   */
-  startWave(n) {
-    this.wave = n;
-    this.waveTimer = 0;
-    const isBoss = n % RULES.bossEvery === 0;
-
-    if (isBoss) {
-      this.spawnQueue = [];
-      this.bossPending = true;
-      this.scroller.clearObstacles(this.particles);
-      this.ui.banner('WARNING', 'DESTROYER INBOUND', 2.6);
-      sfx.play('bossWarn');
-      this.shake(SHAKE.medium);
-      return;
-    }
-
-    const t = WAVE_TABLE[Math.min(WAVE_TABLE.length - 1, n - 1)];
-    const bonus = Math.floor(Math.max(0, n - WAVE_TABLE.length) * 0.8);
-    /** @type {string[]} */
-    const queue = [];
-    for (let i = 0; i < t.grunt + bonus; i++) queue.push('grunt');
-    for (let i = 0; i < t.jetski + bonus; i++) queue.push('jetski');
-    for (let i = 0; i < t.helicopter + Math.floor(bonus / 2); i++) queue.push('helicopter');
-    // Shuffle for variety.
-    for (let i = queue.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0;
-      [queue[i], queue[j]] = [queue[j], queue[i]];
-    }
-    this.spawnQueue = queue;
-    this.spawnRate = t.rate * Math.max(0.42, 1 - n * 0.03);
-    this.spawnTimer = 0.6;
-    this.ui.banner(`WAVE ${n}`, `${queue.length} HOSTILES`, 1.8);
-    sfx.play('wave');
-  }
-
-  /** Pull the next enemy off the queue and place it above the screen. */
-  spawnFromQueue() {
-    if (!this.spawnQueue.length) return;
-    const type = this.spawnQueue.shift();
-    const level = this.wave - 1;
-    // Grunts sometimes arrive as a small formation.
-    if (type === 'grunt' && Math.random() < 0.3 && this.spawnQueue.length >= 2) {
-      const cx = rand(90, GAME_W - 90);
-      for (let i = -1; i <= 1; i++) {
-        this.enemies.push(createEnemy('grunt', clamp(cx + i * 46, 30, GAME_W - 30), -40 - Math.abs(i) * 26, level));
-        if (i !== 0 && this.spawnQueue[0] === 'grunt') this.spawnQueue.shift();
-      }
-      return;
-    }
-    this.enemies.push(createEnemy(type, rand(40, GAME_W - 40), -40, level));
-  }
 
   /* ------------------------------------------------------------------ */
   /* Scoring & juice helpers                                            */

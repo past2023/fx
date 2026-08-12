@@ -12,9 +12,8 @@
  */
 
 import { GAME_W, COURSE, COLORS, clamp, rand } from '#game/config.js';
-import { px, pxBorder, glow } from '#game/Sprite.js';
+import { px, glow } from '#game/Sprite.js';
 import { art } from '#game/Assets.js';
-import { sfx } from '#game/Sound.js';
 
 /** A checkpoint gate: two pylons you drive between for a time/score bonus. */
 export class Gate {
@@ -76,7 +75,6 @@ export class Gate {
       px(ctx, px0 - 3, y - 40, 6, 12, '#ffffff');
       glow(ctx, col, 14, () => px(ctx, px0 - 4, y - 46, 8, 8, col));
     }
-    ctx.restore?.();
   }
 }
 

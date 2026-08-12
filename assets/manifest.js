@@ -62,6 +62,11 @@ export const MANIFEST = [
   { key: 'world.buoyRed',      src: 'world/buoy_red.png',   frames: 2 }, // 20x34
   { key: 'world.buoyGreen',    src: 'world/buoy_green.png', frames: 2 },
 
+  /* ---------------- Race furniture ---------------- */
+  { key: 'world.gate',     src: 'world/gate.png',     frames: 1 },  // 24x56 pylon
+  { key: 'world.survivor', src: 'world/survivor.png', frames: 2 },  // 16x16 swimmer
+  { key: 'rival.hull',     src: 'rivals/hull.png',    frames: 3 },  // 24x40, tinted
+
   /* ---------------- Water (seamless tiles) ----------------
    * These MUST tile seamlessly on both axes. 480px wide matches the play
    * area exactly; height is free (128–256 works well).

@@ -13,9 +13,9 @@
  */
 
 import {
-  GAME_W, GAME_H, HORIZON, RIVALS, COLORS, clamp, damp, rand, lerp,
+  GAME_W, GAME_H, HORIZON, RIVALS, COLORS, clamp, damp, rand,
 } from '#game/config.js';
-import { px, glow, drawMatrix, SPR_GRUNT } from '#game/Sprite.js';
+import { px, glow } from '#game/Sprite.js';
 import { art } from '#game/Assets.js';
 
 export class Rival {

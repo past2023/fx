@@ -1,7 +1,10 @@
 # NEON WAKE — Hydrofoil Assault
 
-A 2D top-down, vertical-scrolling futuristic speedboat racing shooter in a
-cyberpunk pixel-art style. Vanilla JavaScript, native ES Modules, HTML5 Canvas.
+A 2D top-down, vertical-scrolling futuristic speedboat **race** in a bright
+summer-daytime pixel-art style: run a point-to-point ocean course against three
+rival racers, rescue swimmers from the water, master drift and currents, bank
+power-up tokens on a Gradius-style selector, and sink the destroyer waiting at
+the finish. Vanilla JavaScript, native ES Modules, HTML5 Canvas.
 
 **No build tools. No bundlers. No libraries. No external assets or fonts.**
 Every sprite, particle and UI element is drawn at runtime with `fillRect` and
@@ -39,10 +42,12 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
 
 | Input | Action |
 | --- | --- |
-| `←` `→` `↑` `↓` / `WASD` | Steer (8-directional, with water inertia) |
+| `←` `→` `↑` `↓` / `WASD` | Steer — momentum-based, the hull keeps sliding |
 | `↑` / `W` **held** | **Boost** — burns the boost gauge, speeds up the world |
+| `Shift` **held** | **Drift** — break grip, slide wide, charge a drift boost |
 | `Space` | Machine guns (regenerating ammo) |
-| `Shift` | Homing missile (max 3) |
+| `X` | Homing missile (max 3) |
+| `Z` / `Enter` | **Activate** the selected power-up on the token bar |
 | `P` / `Esc` | Pause &nbsp;·&nbsp; `Esc` on the results screen returns to the title |
 | `M` | Mute |
 
@@ -50,12 +55,64 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
 
 ## Gameplay
 
+### The race
+
+The course is a fixed **point-to-point route of themed sections** — Harbour
+Start, Coral Reef, Rescue Zone, Patrol Gauntlet, Narrow Straits, Survivors
+Ahead, Open Sea Sprint — ending in a **Final Boss** destroyer. A progress track
+across the top of the screen shows every section, the rescue zones (green), the
+finish flag and your pip moving along the route.
+
+- **Rivals & placement** — VIPER, ORCA and KESTREL race the same route. Your
+  position (`1ST` … `4TH`) updates live in the top-right, rivals rubber-band so
+  the pack stays close, and you can body-check them. Finishing position pays a
+  large placement bonus.
+- **Checkpoint gates** — pylon gates appear through the course; passing between
+  them refunds boost and pays points, missing one costs you nothing but time.
+- **Final boss** — reaching the end of the route triggers the destroyer. Sink it
+  to cross the finish line and see the results screen.
+
+### People rescue
+
+Marked **rescue zones** drop swimmers into the water; they drift with the
+current and panic-flash as their timer runs down. Drive over one to pick it up
+(`SURVIVORS n/N` tracks the zone). Every save pays out, and clearing a whole
+zone pays a large bonus. Swimmers you leave behind are lost for good and are
+counted on the results screen.
+
+### Water momentum & drift
+
+The boat has **no car-like grip**. Lateral velocity bleeds off exponentially
+rather than snapping to zero, so you carry speed through turns and have to
+plan entries. Holding `Shift` **drifts**: grip drops, steering authority rises,
+the hull banks hard and a drift charge builds — release it for a free speed
+burst. A **flow-field current** pushes the boat, the enemies and the swimmers
+around; faint arrows hint at its direction, and riding it is faster than
+fighting it.
+
+### Gradius power-up bar
+
+Killing enemies and clearing gates drops **tokens**. Tokens light up a selector
+bar along the bottom of the screen, and `Z` spends them on whichever slot you
+can currently afford:
+
+| Slot | Cost | Effect |
+| --- | --- | --- |
+| `SPEED` | 1 | +10% top speed, stacks up to 4× |
+| `MISSILE` | 2 | +2 homing missiles |
+| `FIRE` | 3 | 16 s of spread fire |
+| `TURBO` | 4 | 9 s of free boost (no gauge drain) |
+| `SHIELD` | 5 | 12 s of damage immunity |
+
+Banking tokens for an expensive slot instead of spending them immediately is the
+core economic decision — exactly like Gradius.
+
 - **Boost economy** — holding up drains the gauge and accelerates the scroll;
   it refills when you ease off (faster if you throttle down). The sea visibly
   whips up — more whitecaps and speed streaks — the faster you go.
 - **Weapons** — machine guns fire continuously and the ammo bar refills
   automatically; blue `W` pickups grant a temporary 3-way (and, stacked, 5-way)
-  spread. `Shift` launches homing missiles that re-acquire a new target if
+  spread. `X` launches homing missiles that re-acquire a new target if
   theirs dies, and deal splash damage.
 - **Pickups** — blue = spread, red = missile, yellow = ammo, green = 1UP,
   white = shield. They magnetise toward you when you get close.
@@ -64,9 +121,10 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
 - **Hazards** — floating mines (destructible, and they damage enemies too),
   rocky islands (solid — you bounce off) and whirlpools (they drag and slow you
   but deal no damage).
-- **Waves** — a new wave every 30 seconds, *or* immediately when you clear the
-  current one (which pays a clear bonus). Every 4th wave is a **Destroyer boss**
-  with three escalating attack phases and a staged, explosive death.
+- **Section pacing** — each course section defines its own enemy and mine
+  density, so pressure ebbs and flows along the route instead of arriving in
+  fixed waves. The **Destroyer boss** has three escalating attack phases and a
+  staged, explosive death.
 - **Combos** — chain kills within 2 seconds to climb x2 → x4 → x8 → x16.
   Taking damage breaks the chain.
 - **High score** persists in `localStorage`.
@@ -93,7 +151,7 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
 │   ├── ASSET_GUIDE.md    how to author replacement PNGs (sizes, pivots, tiling)
 │   └── manifest.js       optional PNG list — every entry falls back to pixel art
 └── js/
-    ├── main.js           game loop, delta time, state machine, wave director,
+    ├── main.js           game loop, delta time, state machine, course director,
     │                     scoring/combo economy, central collision dispatch
     ├── config.js         all constants (sizes, palette, physics, tuning) + math helpers
     ├── Input.js          keyboard singleton — held state + per-frame edge presses
@@ -103,9 +161,15 @@ support — Chrome 89+, Firefox 108+, Safari 16.4+).
     ├── WeaponSystem.js   cooldowns, ammo regen, spread upgrades, missile logic
     ├── Particle.js       pooled pixel particles: explosions, wake, sparks, popups
     ├── PowerUp.js        pickup cubes + weighted drop table
-    ├── Scroller.js       parallax waves, skyline, buoys, obstacle spawning
+    ├── Scroller.js       daytime sky, tropical coast, ocean, buoys, obstacles
+    ├── Course.js         point-to-point route, themed sections, checkpoint gates
+    ├── Rival.js          the three AI racers + live placement logic
+    ├── Rescue.js         swimmers in the water + rescue-zone bookkeeping
+    ├── Current.js        flow-field water current that pushes everything around
+    ├── PowerBar.js       Gradius token economy + manual power-up activation
     ├── Collision.js      pure AABB / circle / MTV helpers (no state, no imports)
-    ├── UIManager.js      HUD, banners, boss bar, menu / pause / game-over, CRT pass
+    ├── UIManager.js      HUD, course track, power bar, banners, boss bar,
+    │                     menu / pause / game-over / finish screens, CRT pass
     ├── Sprite.js         pixel-matrix renderer + shared sprite data
     ├── Assets.js         PNG registry — swaps generated art for images
     └── Sound.js          Web Audio SFX + bass sequencer, fully procedural

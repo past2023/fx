@@ -120,6 +120,14 @@ rotating cube; a real 8-frame spin looks great here).
 | `whirlpool.png` | 132 × 132 | 8 | Also rotated in code, so a subtle 8-frame churn is enough. |
 | `buoy_red.png` | 20 × 34 | 2 | Left-lane marker. |
 | `buoy_green.png` | 20 × 34 | 2 | Right-lane marker. |
+| `gate.png` | 24 × 56 | 1 | Checkpoint pylon. Draw the **left-hand** pylon only — the right-hand one is the same image drawn with `flipX`, so keep it asymmetric-friendly. The glowing line strung between the two pylons is drawn in code, at the sprite's vertical centre. |
+| `survivor.png` | 16 × 16 | 2 | Swimmer in the water, seen from above. Frame 0 = floating, **frame 1 = arm raised / waving** (this is the "I'm here" tell, so make it read at a glance). The foam ring and the panic flash are drawn in code around it. |
+
+### Rivals — `assets/rivals/`
+
+| File | Frame size | Frames | Notes |
+| --- | --- | --- | --- |
+| `hull.png` | 24 × 40 | 3 | The AI racers' boat, bow points **up**. Same frame convention as the player: 0 = level, 1 = banking left, 2 = banking right. All three rivals share this one sprite; their identity comes from the name tag and wake colour drawn in code, so keep the hull **fairly neutral in colour** or it will fight the per-rival tint. |
 
 ### Water — `assets/water/` ⚠️ special
 
