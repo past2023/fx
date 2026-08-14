@@ -1,0 +1,681 @@
+/* ============================================================================
+   VERB TETRIS: MISIONES COTIDIANAS — Hoja de estilos
+   Tema oscuro "espacio/neón". Solo la UI HTML se estiliza aquí; el tablero
+   de juego se dibuja en el <canvas>.
+   ============================================================================ */
+
+:root {
+  --bg: #070718;
+  --bg-2: #0d0d26;
+  --panel: #141431;
+  --panel-2: #1b1b3a;
+  --line: rgba(120, 140, 255, 0.16);
+  --text: #eef2ff;
+  --text-dim: #9aa3d0;
+  --cyan: #00e5ff;
+  --magenta: #ff2d95;
+  --orange: #ff9100;
+  --lime: #aaff00;
+  --gold: #ffd700;
+  --green: #00ff88;
+  --red: #ff4d6d;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(120, 0, 255, 0.25), transparent 60%),
+    radial-gradient(1000px 700px at -10% 110%, rgba(0, 229, 255, 0.16), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  height: 100dvh;
+  padding: 10px 14px;
+  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ===================== HUD ===================== */
+
+#hud {
+  width: 100%;
+  max-width: 860px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.hud-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hud-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-weight: 700;
+}
+
+.coin-icon {
+  font-size: 18px;
+}
+
+.hearts {
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+.hearts .heart-broken {
+  opacity: 0.22;
+  transform: scale(0.9);
+}
+
+.lvl-label {
+  font-size: 12px;
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+#level-value {
+  color: var(--lime);
+  font-size: 18px;
+}
+
+.icon-btn {
+  margin-left: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.icon-btn:active {
+  transform: scale(0.9);
+}
+
+.hud-mission {
+  margin-top: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#mission-emoji {
+  font-size: 22px;
+}
+
+.mission-verbs {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-left: auto;
+}
+
+#phrase-box {
+  margin-top: 8px;
+  background: rgba(0, 229, 255, 0.06);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+#phrase-text {
+  font-size: clamp(20px, 3.2vw, 30px);
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+#phrase-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+#progress-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--cyan), var(--magenta));
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+/* ===================== ÁREA DE JUEGO ===================== */
+
+#game-area {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 860px;
+}
+
+.board-wrap {
+  background: linear-gradient(180deg, var(--bg-2), var(--bg));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6), 0 12px 40px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+
+#board {
+  display: block;
+  border-radius: 8px;
+}
+
+#side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 170px;
+  flex-shrink: 0;
+}
+
+.panel-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px;
+  text-align: center;
+}
+
+.panel-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+#next {
+  display: block;
+  margin: 0 auto;
+}
+
+.big-btn {
+  width: 100%;
+  padding: 14px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.big-btn:hover {
+  filter: brightness(1.15);
+}
+
+.big-btn:active {
+  transform: translateY(2px) scale(0.99);
+}
+
+.big-btn.primary {
+  background: linear-gradient(135deg, var(--cyan), var(--magenta));
+  border: none;
+  color: #070718;
+  font-size: 18px;
+  padding: 16px;
+  box-shadow: 0 6px 24px rgba(0, 229, 255, 0.35);
+}
+
+.ghost-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ghost-btn:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.danger-link {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+#controls-help {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.spc {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+/* ===================== OVERLAY Y MODALES ===================== */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 4, 16, 0.72);
+  backdrop-filter: blur(3px);
+  z-index: 40;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-card {
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 26px 24px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.modal-card.wide {
+  max-width: 560px;
+}
+
+.modal-card h2 {
+  font-size: 24px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ---- Menú principal ---- */
+
+.menu-card {
+  max-width: 460px;
+  background: radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.12), transparent 60%), linear-gradient(180deg, var(--panel), var(--panel-2));
+}
+
+.game-title {
+  font-size: 40px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 24px rgba(0, 229, 255, 0.5);
+}
+
+.game-title span {
+  color: var(--magenta);
+  text-shadow: 0 0 24px rgba(255, 45, 149, 0.5);
+}
+
+.game-subtitle {
+  color: var(--text-dim);
+  margin-top: -6px;
+  font-size: 15px;
+}
+
+.menu-stats {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.menu-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.menu-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.menu-misc {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.menu-misc .ghost-btn,
+.pause-row .ghost-btn {
+  flex: 1;
+}
+
+.help-text {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* ---- Tienda ---- */
+
+.shop-coins {
+  font-size: 20px;
+  font-weight: 800;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+#shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.shop-item .si-icon {
+  font-size: 30px;
+}
+
+.shop-item .si-name {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.shop-item .si-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.shop-item .si-cost {
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--gold);
+  font-size: 14px;
+}
+
+.shop-item .buy-btn {
+  background: linear-gradient(135deg, var(--gold), #ffb300);
+  border: none;
+  color: #171300;
+  font-weight: 800;
+  padding: 9px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.buy-btn:disabled,
+.shop-item.owned .buy-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.close-btn {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* ---- Mapa de misiones ---- */
+
+#map-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 6px 0;
+}
+
+.map-node {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.map-node.current {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.4);
+}
+
+.map-node.completed {
+  border-color: rgba(0, 255, 136, 0.5);
+}
+
+.map-node.locked {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.map-node .mn-emoji {
+  font-size: 30px;
+}
+
+.map-node .mn-info {
+  flex: 1;
+}
+
+.map-node .mn-name {
+  font-weight: 800;
+}
+
+.map-node .mn-status {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.map-node .mn-badge {
+  font-size: 22px;
+}
+
+/* ---- Celebración ---- */
+
+.big-star {
+  font-size: 70px;
+  animation: starPop 0.8s ease;
+}
+
+@keyframes starPop {
+  0% { transform: scale(0) rotate(-120deg); }
+  70% { transform: scale(1.25) rotate(10deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+.bonus-text {
+  font-weight: 800;
+  color: var(--gold);
+  font-size: 20px;
+}
+
+.reward-text {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+/* ---- Toast (pista en ruso) ---- */
+
+.toast {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  max-width: 90vw;
+  background: linear-gradient(135deg, var(--panel-2), #1f1f44);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--cyan);
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-size: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  animation: toastIn 0.25s ease;
+}
+
+.toast.good { border-left-color: var(--green); }
+.toast.bad { border-left-color: var(--red); }
+.toast.info { border-left-color: var(--cyan); }
+
+.toast .toast-hint {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+@keyframes toastIn {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* ---- Animaciones de corazones ---- */
+
+.heart-anim {
+  animation: heartPop 0.4s ease;
+}
+
+@keyframes heartPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+
+/* ---- RESPONSIVE ---- */
+
+@media (max-width: 760px) {
+  #game-area {
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #side-panel {
+    flex-direction: row;
+    width: 100%;
+    max-width: 440px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .panel-box {
+    width: 120px;
+  }
+
+  .big-btn {
+    width: auto;
+    flex: 1 1 90px;
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+
+  .mission-verbs {
+    display: none;
+  }
+
+  #board-wrap {
+    padding: 4px;
+  }
+}
+
+@media (max-width: 520px) {
+  .game-title { font-size: 30px; }
+  #phrase-text { font-size: 20px; }
+  .hud-item { padding: 4px 8px; font-size: 14px; }
+}
